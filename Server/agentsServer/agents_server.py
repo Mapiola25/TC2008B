@@ -118,6 +118,40 @@ def getObstacles():
             print(e)
             return jsonify({"message": "Error with obstacle positions"}), 500
 
+@app.route('/getRoads', methods=['GET'])
+@cross_origin()
+def getRoads():
+    global randomModel
+
+    if request.method == 'GET':
+        try:
+            # Get the positions of the obstacles and return them to WebGL in JSON.json.t.
+            # Same as before, the positions are sent as a list of dictionaries, where each dictionary has the id and position of an obstacle.
+
+            roadCells = randomModel.grid.all_cells.select(
+                lambda cell: any(isinstance(obj, Road) for obj in cell.agents)
+            )
+            # print(f"CELLS: {agentCells}")
+
+            agents = [
+                (cell.coordinate, agent)
+                for cell in roadCells
+                for agent in cell.agents
+                if isinstance(agent, Road)
+            ]
+            # print(f"AGENTS: {agents}")
+
+            roadPositions = [
+                {"id": str(a.unique_id), "x": coordinate[0], "y":0, "z":coordinate[1]}
+                for (coordinate, a) in agents
+            ]
+            # print(f"OBSTACLE POSITIONS: {obstaclePositions}")
+
+            return jsonify({'positions': roadPositions})
+        except Exception as e:
+            print(e)
+            return jsonify({"message": "Error with obstacle positions"}), 500
+
 # This route will be used to update the model
 @app.route('/update', methods=['GET'])
 @cross_origin()

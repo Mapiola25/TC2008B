@@ -16,6 +16,7 @@ const agent_server_uri = "http://localhost:8585/";
 // Initialize arrays to store agents and obstacles
 const agents = [];
 const obstacles = [];
+const roads = [];
 
 // Define the data object
 const initData = {
@@ -132,6 +133,31 @@ async function getObstacles() {
     }
 }
 
+async function getRoads() {
+    try {
+        // Send a GET request to the agent server to retrieve the obstacle positions
+        let response = await fetch(agent_server_uri + "getRoads");
+
+        // Check if the response was successful
+        if (response.ok) {
+            // Parse the response as JSON
+            let result = await response.json();
+
+            // Create new obstacles and add them to the obstacles array
+            for (const road of result.positions) {
+                const newRoad = new Object3D(road.id, [road.x, road.y, road.z]);
+                roads.push(newRoad);
+            }
+            // Log the obstacles array
+            //console.log("Obstacles:", obstacles);
+        }
+
+    } catch (error) {
+        // Log any errors that occur during the request
+        console.log(error);
+    }
+}
+
 /*
  * Updates the agent positions by sending a request to the agent server.
  */
@@ -154,4 +180,4 @@ async function update() {
     }
 }
 
-export { agents, obstacles, initAgentsModel, update, getAgents, getObstacles };
+export { agents, obstacles, roads, initAgentsModel, update, getAgents, getObstacles, getRoads };

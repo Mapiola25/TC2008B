@@ -20,7 +20,7 @@ import { Camera3D } from '../libs/camera3d';
 // Functions and arrays for the communication with the API
 import {
   agents, obstacles, initAgentsModel,
-  update, getAgents, getObstacles
+  update, getAgents, getObstacles, getRoads, roads
 } from '../libs/api_connection.js';
 
 // Define the shader code, using GLSL 3.00
@@ -67,6 +67,7 @@ async function main() {
   // Get the agents and obstacles
   await getAgents();
   await getObstacles();
+  await getRoads();
 
 
   // Initialize the scene
@@ -129,7 +130,16 @@ function setupObjects(scene, gl, programInfo) {
     agent.bufferInfo = baseCube.bufferInfo;
     agent.vao = baseCube.vao;
     agent.scale = { x: 0.5, y: 0.5, z: 0.5 };
-    agent.color = [0.7, 0.7, 0.7, 1.0];
+    agent.color = [0.5, 0.5, 0.5, 1.0];
+    scene.addObject(agent);
+  }
+
+  for (const agent of roads) {
+    agent.arrays = baseCube.arrays;
+    agent.bufferInfo = baseCube.bufferInfo;
+    agent.vao = baseCube.vao;
+    agent.scale = { x: 0.5, y: 0.5, z: 0.5 };
+    agent.color = [1, 1, 1, 1];
     scene.addObject(agent);
   }
 
@@ -174,7 +184,8 @@ function drawObject(gl, programInfo, object, viewProjectionMatrix, fract) {
 
   // Model uniforms
   let objectUniforms = {
-    u_transforms: wvpMat
+    u_transforms: wvpMat,
+    ucolor: object.color
   }
   twgl.setUniforms(programInfo, objectUniforms);
 
@@ -239,18 +250,18 @@ function setupViewProjection(gl) {
 
 // Setup a ui.
 function setupUI() {
-  /*
-  const gui = new GUI();
 
-  // Settings for the animation
-  const animFolder = gui.addFolder('Animation:');
-  animFolder.add( settings.rotationSpeed, 'x', 0, 360)
-      .decimals(2)
-  animFolder.add( settings.rotationSpeed, 'y', 0, 360)
-      .decimals(2)
-  animFolder.add( settings.rotationSpeed, 'z', 0, 360)
-      .decimals(2)
-  */
+  // const gui = new GUI();
+
+  // // Settings for the animation
+  // const animFolder = gui.addFolder('Animation:');
+  // animFolder.add( settings.rotationSpeed, 'x', 0, 360)
+  //     .decimals(2)
+  // animFolder.add( settings.rotationSpeed, 'y', 0, 360)
+  //     .decimals(2)
+  // animFolder.add( settings.rotationSpeed, 'z', 0, 360)
+  //     .decimals(2)
+
 }
 
 main();
