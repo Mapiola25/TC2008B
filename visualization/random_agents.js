@@ -20,7 +20,7 @@ import { Camera3D } from '../libs/camera3d';
 // Functions and arrays for the communication with the API
 import {
   agents, obstacles, initAgentsModel,
-  update, getAgents, getObstacles, getRoads, roads
+  update, getAgents, getObstacles, getRoads, roads, tlights, getTlights
 } from '../libs/api_connection.js';
 
 // Define the shader code, using GLSL 3.00
@@ -68,6 +68,7 @@ async function main() {
   await getAgents();
   await getObstacles();
   await getRoads();
+  await getTlights();
 
 
   // Initialize the scene
@@ -142,6 +143,19 @@ function setupObjects(scene, gl, programInfo) {
     agent.color = [1, 1, 1, 1];
     scene.addObject(agent);
   }
+
+  for (const tl of tlights) {
+    tl.arrays = baseCube.arrays;
+    tl.bufferInfo = baseCube.bufferInfo;
+    tl.vao = baseCube.vao;
+    tl.scale = { x: 0.3, y: 0.8, z: 0.3 };
+    if (tl.state === "red") tl.color = [1, 0, 0, 1];
+    else if (tl.state === "yellow") tl.color = [1, 1, 0, 1];
+    else if (tl.state === "green") tl.color = [0, 1, 0, 1];
+    else tl.color = [1, 1, 1, 1];
+    scene.addObject(tl);
+}
+
 
 }
 

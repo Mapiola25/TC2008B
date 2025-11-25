@@ -151,6 +151,41 @@ def getRoads():
         except Exception as e:
             print(e)
             return jsonify({"message": "Error with obstacle positions"}), 500
+        
+@app.route('/getTlights', methods=['GET'])
+@cross_origin()
+def getTlights():
+    global randomModel
+
+    if request.method == 'GET':
+        try:
+            tlCells = randomModel.grid.all_cells.select(
+                lambda cell: any(isinstance(obj, Traffic_Light) for obj in cell.agents)
+            )
+
+            tls = [
+                (cell.coordinate, agent)
+                for cell in tlCells
+                for agent in cell.agents
+                if isinstance(agent, Traffic_Light)
+            ]
+
+            tlPositions = [
+                {
+                    "id": str(a.unique_id),
+                    "x": coordinate[0],
+                    "y": 1,                     
+                    "z": coordinate[1],
+                    "state": "green" if a.state else "red"
+                }
+                for (coordinate, a) in tls
+            ]
+
+            return jsonify({'positions': tlPositions})
+
+        except Exception as e:
+            print(e)
+            return jsonify({"message": "Error with traffic light positions"}), 500
 
 # This route will be used to update the model
 @app.route('/update', methods=['GET'])

@@ -17,6 +17,7 @@ const agent_server_uri = "http://localhost:8585/";
 const agents = [];
 const obstacles = [];
 const roads = [];
+const tlights= [];
 
 // Define the data object
 const initData = {
@@ -158,6 +159,31 @@ async function getRoads() {
     }
 }
 
+async function getTlights() {
+    try {
+        // GET request to Mesa server to retrieve traffic light positions
+        let response = await fetch(agent_server_uri + "getTlights");
+
+        // Check if the response was successful
+        if (response.ok) {
+            let result = await response.json();
+
+            // Create new traffic light objects
+            for (const tl of result.positions) {
+                const newLight = new Object3D(tl.id, [tl.x, tl.y, tl.z]);
+
+                // OPTIONAL: Add a custom field for the light state
+                newLight.state = tl.state;   // "red", "yellow", "green"
+
+                tlights.push(newLight);
+            }
+        }
+
+    } catch (error) {
+        console.log(error);
+    }
+}
+
 /*
  * Updates the agent positions by sending a request to the agent server.
  */
@@ -180,4 +206,4 @@ async function update() {
     }
 }
 
-export { agents, obstacles, roads, initAgentsModel, update, getAgents, getObstacles, getRoads };
+export { agents, obstacles, roads, initAgentsModel, update, getAgents, getObstacles, getRoads, tlights, getTlights };

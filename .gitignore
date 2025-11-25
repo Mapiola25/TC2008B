@@ -1,0 +1,68 @@
+# ===============================
+# PYTHON / MESA SERVER
+# ===============================
+
+# Byte-compiled Python files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Local config files
+*.log
+
+# ===============================
+# NODE / VITE / WEBGL
+# ===============================
+
+# Node dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Vite cache
+.vite/
+
+# Lock files generated inside node_modules
+node_modules/**/.package-lock.json
+node_modules/**/*.md
+node_modules/**/*.ts
+node_modules/**/*.js
+node_modules/**/*.node
+node_modules/**/LICENSE
+node_modules/**/package.json
+
+# ===============================
+# OS / EDITOR JUNK FILES
+# ===============================
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# ===============================
+# PROJECT-SPECIFIC EXCLUSIONS
+# ===============================
+
+# Do not track randomAgents cache
+Server/agentsServer/randomAgents/__pycache__/
+
+# Ignore Vite metadata inside node_modules
+node_modules/.vite/
+node_modules/.vite/deps/_metadata.json
+
+# Ignore auto-generated visualization files
+visualization/*.cache
