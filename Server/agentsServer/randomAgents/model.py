@@ -23,7 +23,7 @@ class CityModel(Model):
         dataDictionary = json.load(open(os.path.join(base_path, "city_files/mapDictionary.json")))
 
         self.num_agents = N
-        self.spawn_of_cars = spawn_of_cars
+        self.spawn_of_cars = 5
         self.traffic_lights = []
         self.current_step = 0
 
@@ -62,18 +62,8 @@ class CityModel(Model):
                     elif col == "D":
                         agent = Destination(self, cell)
 
-        # Create N car agents at random positions
-        # for i in range(self.num_agents):
-        #     # Find a random empty cell to place the car
-        #     empty_cells = [cell for cell in self.grid.all_cells if len(cell.agents) == 0]
-        #     if empty_cells:
-        #         import random
-        #         cell = random.choice(empty_cells)
-        #         agent = Car(self, cell)
-        
-        for _, cell in enumerate(self.grid):
-            if cell.coordinate == (0,0) or cell.coordinate == (23,0) or cell.coordinate == (23,24) or cell.coordinate == (0,24):
-                agent = Car(self, cell)
+
+                
 
         self.running = True
 
@@ -81,3 +71,15 @@ class CityModel(Model):
         """Advance the model by one step."""
         self.agents.shuffle_do("step")
         self.current_step += 1
+
+
+        # Spawn new cars at specific locations (corners of the map)
+        spawn_locations = [(0,0), (23, 0), (23, 24), (0, 24)]
+        if self.current_step % self.spawn_of_cars == 0:
+            for location in spawn_locations:
+                try:
+                    cell = self.grid[location]
+                    agent = Car(self, cell)
+                    print(f"New car spawned at {location}")
+                except Exception as e:
+                    print(f"Error spawning car at {location}: {e}")

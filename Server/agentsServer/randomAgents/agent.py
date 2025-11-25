@@ -1,5 +1,7 @@
 from mesa.discrete_space import CellAgent, FixedAgent
 
+destinations = []
+
 class Car(CellAgent):
     """
     Agent that moves randomly.
@@ -58,6 +60,8 @@ class Destination(FixedAgent):
         """
         super().__init__(model)
         self.cell = cell
+        destinations.append(self.cell)
+
 
 class Obstacle(FixedAgent):
     """
