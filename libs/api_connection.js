@@ -18,6 +18,7 @@ const agents = [];
 const obstacles = [];
 const roads = [];
 const tlights= [];
+const destinations = [];
 
 // Define the data object
 const initData = {
@@ -134,6 +135,31 @@ async function getObstacles() {
     }
 }
 
+async function getDestinations() {
+    try {
+        // Send a GET request to the agent server to retrieve the obstacle positions
+        let response = await fetch(agent_server_uri + "getDestinations");
+
+        // Check if the response was successful
+        if (response.ok) {
+            // Parse the response as JSON
+            let result = await response.json();
+
+            // Create new destination and add them to the destination array
+            for (const destination of result.positions) {
+                const newDestination = new Object3D(destination.id, [destination.x, destination.y, destination.z]);
+                destinations.push(newDestination);
+            }
+            // Log the destination array
+            //console.log("destination:", destination);
+        }
+
+    } catch (error) {
+        // Log any errors that occur during the request
+        console.log(error);
+    }
+}
+
 async function getRoads() {
     try {
         // Send a GET request to the agent server to retrieve the obstacle positions
@@ -222,4 +248,4 @@ async function update() {
     }
 }
 
-export { agents, obstacles, roads, initAgentsModel, update, getAgents, getObstacles, getRoads, tlights, getTlights };
+export { agents, obstacles, roads, destinations, initAgentsModel, update, getAgents, getObstacles, getRoads, tlights, getTlights, getDestinations };

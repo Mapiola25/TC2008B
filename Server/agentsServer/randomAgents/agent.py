@@ -39,10 +39,10 @@ class Traffic_Light(FixedAgent):
         self.timeToChange = timeToChange
 
     def step(self):
-        """ 
+        """
         To change the state (green or red) of the traffic light in case you consider the time to change of each traffic light.
         """
-        if self.model.steps % self.timeToChange == 0:
+        if self.model.current_step % self.timeToChange == 0:
             self.state = not self.state
 
 class Destination(FixedAgent):
