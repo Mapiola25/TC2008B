@@ -161,24 +161,31 @@ async function getRoads() {
 
 async function getTlights() {
     try {
-        // GET request to Mesa server to retrieve traffic light positions
         let response = await fetch(agent_server_uri + "getTlights");
 
-        // Check if the response was successful
         if (response.ok) {
             let result = await response.json();
 
-            // Create new traffic light objects
-            for (const tl of result.positions) {
-                const newLight = new Object3D(tl.id, [tl.x, tl.y, tl.z]);
+            // First time: create the lights
+            if (tlights.length === 0) {
+                for (const tl of result.positions) {
+                    const newLight = new Object3D(tl.id, [tl.x, tl.y, tl.z]);
+                    newLight.state = tl.state;
+                    tlights.push(newLight);
+                }
+            } 
+            else {
+                // Update existing lights
+                for (const tl of result.positions) {
+                    const existing = tlights.find(obj => obj.id == tl.id);
 
-                // OPTIONAL: Add a custom field for the light state
-                newLight.state = tl.state;   // "red", "yellow", "green"
-
-                tlights.push(newLight);
+                    if (existing) {
+                        existing.position = { x: tl.x, y: tl.y, z: tl.z };
+                        existing.state = tl.state;
+                    }
+                }
             }
         }
-
     } catch (error) {
         console.log(error);
     }
@@ -196,6 +203,15 @@ async function update() {
         if (response.ok) {
             // Retrieve the updated agent positions
             await getAgents();
+            await getTlights();
+            for (const tl of tlights){
+                if (tl.state === "red")
+                    tl.color = [1,0,0,1];
+                else if (tl.state === "yellow")
+                    tl.color = [1,1,0,1];
+                else if (tl.state === "green")
+                    tl.color = [0,1,0,1];
+            }
             // Log a message indicating that the agents have been updated
             //console.log("Updated agents");
         }
