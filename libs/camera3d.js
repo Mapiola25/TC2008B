@@ -91,14 +91,14 @@ class Camera3D {
         const s = Math.sin(this.azimuth);
         const c = Math.cos(this.azimuth);
         // Determine the current position of the camera
-        //const front = [ s, 0,  c];
+        const front = [ s, 0,  c];
         const right = [ c, 0, -s];
-        const up = [0, 1, 0];
+        //const up = [0, 1, 0];
 
         // Update the panning offset
-        this.panOffset[0] += (-right[0] * deltaX + up[0] * deltaY) * this.panSpeed;
-        this.panOffset[1] += (-right[1] * deltaX + up[1] * deltaY) * this.panSpeed;
-        this.panOffset[2] += (-right[2] * deltaX + up[2] * deltaY) * this.panSpeed;
+        this.panOffset[0] += (-right[0] * deltaX + front[0] * deltaY) * this.panSpeed;
+        this.panOffset[1] += (-right[1] * deltaX + front[1] * deltaY) * this.panSpeed;
+        this.panOffset[2] += (-right[2] * deltaX + front[2] * deltaY) * this.panSpeed;
     }
 
     zoom(delta) {
@@ -120,10 +120,10 @@ class Camera3D {
     checkKeys() {
         // Rotation
         if (this.keysPressed['ArrowLeft']) {
-            this.rotate(-1, 0);
+            this.rotate(1, 0);
         }
         if (this.keysPressed['ArrowRight']) {
-            this.rotate(1, 0);
+            this.rotate(-1, 0);
         }
         if (this.keysPressed['ArrowUp']) {
             this.rotate(0, 1);
@@ -140,10 +140,10 @@ class Camera3D {
             this.pan(1, 0);
         }
         if (this.keysPressed['w'] || this.keysPressed['Z']) {
-            this.pan(0, 1);
+            this.pan(0, -1);
         }
         if (this.keysPressed['s'] || this.keysPressed['C']) {
-            this.pan(0, -1);
+            this.pan(0, 1);
         }
 
         // Zoom
