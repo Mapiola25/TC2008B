@@ -51,6 +51,7 @@ let gl = undefined;
 const duration = 1000; // ms
 let elapsed = 0;
 let then = 0;
+let baseCube = undefined;
 
 
 // Main function is async to be able to make the requests
@@ -106,7 +107,7 @@ function setupScene() {
 
 function setupObjects(scene, gl, programInfo) {
   // Create VAOs for the different shapes
-  const baseCube = new Object3D(-1);
+  baseCube = new Object3D(-1);
   baseCube.prepareVAO(gl, programInfo);
   const baseCube2 = new Object3D(-1);
   baseCube2.prepareVAO(gl, programInfo, building);
@@ -239,6 +240,19 @@ async function drawScene() {
   scene.camera.checkKeys();
   //console.log(scene.camera);
   const viewProjectionMatrix = setupViewProjection(gl);
+
+  // Check for new agents that need to be added to the scene
+  for (const agent of agents) {
+    if (!scene.objects.includes(agent)) {
+      // Setup the new agent with the baseCube properties
+      agent.arrays = baseCube.arrays;
+      agent.bufferInfo = baseCube.bufferInfo;
+      agent.vao = baseCube.vao;
+      agent.scale = { x: 0.5, y: 0.5, z: 0.5 };
+      scene.addObject(agent);
+      console.log("Added new car to scene:", agent.id);
+    }
+  }
 
   // Draw the objects
   gl.useProgram(colorProgramInfo.program);

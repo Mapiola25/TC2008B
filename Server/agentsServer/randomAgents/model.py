@@ -24,7 +24,7 @@ class CityModel(Model):
 
         self.num_agents = N
         self.spawn_of_cars = 5
-        self.traffic_lights = []
+
         self.current_step = 0
 
         # Load the map file. The map file is a text file where each character represents an agent.
@@ -38,6 +38,7 @@ class CityModel(Model):
             )
 
             # Goes through each character in the map file and creates the corresponding agent.
+
             for r, row in enumerate(lines):
                 for c, col in enumerate(row):
 
@@ -47,14 +48,31 @@ class CityModel(Model):
                         agent = Road(self, cell, dataDictionary[col])
 
                     elif col in ["S", "s"]:
+                        # Inferir dirección del semáforo mirando celdas adyacentes
+                        direction = "Left"  # Default
+
+                        # Revisar celda de arriba (r-1)
+                        if r > 0 and lines[r-1][c] in ["v", "^", ">", "<"]:
+                            direction = dataDictionary[lines[r-1][c]]
+                        # Revisar celda de abajo (r+1)
+                        elif r < len(lines)-1 and lines[r+1][c] in ["v", "^", ">", "<"]:
+                            direction = dataDictionary[lines[r+1][c]]
+                        # Revisar celda de izquierda (c-1)
+                        elif c > 0 and lines[r][c-1] in ["v", "^", ">", "<"]:
+                            direction = dataDictionary[lines[r][c-1]]
+                        # Revisar celda de derecha (c+1)
+                        elif c < len(row)-1 and lines[r][c+1] in ["v", "^", ">", "<"]:
+                            direction = dataDictionary[lines[r][c+1]]
+
+                        agent = Road(self, cell, direction)
                         agent = Traffic_Light(
                             self,
                             cell,
                             False if col == "S" else True,
                             int(dataDictionary[col]),
                         )
-                        self.traffic_lights.append(agent)
-                        agent = Road(self, cell, dataDictionary[col])
+
+
 
                     elif col == "#":
                         agent = Obstacle(self, cell)
@@ -75,7 +93,7 @@ class CityModel(Model):
 
         # Spawn new cars at specific locations (corners of the map)
         spawn_locations = [(0,0), (23, 0), (23, 24), (0, 24)]
-        if self.current_step % self.spawn_of_cars == 0:
+        if self.current_step == 1:
             for location in spawn_locations:
                 try:
                     cell = self.grid[location]
