@@ -108,7 +108,7 @@ def getObstacles():
             # print(f"AGENTS: {agents}")
 
             obstaclePositions = [
-                {"id": str(a.unique_id), "x": coordinate[0], "y":1, "z":coordinate[1]}
+                {"id": str(a.unique_id), "x": coordinate[0], "y":0, "z":coordinate[1]}
                 for (coordinate, a) in agents
             ]
             # print(f"OBSTACLE POSITIONS: {obstaclePositions}")

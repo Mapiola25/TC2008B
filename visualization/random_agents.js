@@ -16,6 +16,9 @@ import { M4 } from '../libs/3d-lib';
 import { Scene3D } from '../libs/scene3d';
 import { Object3D } from '../libs/object3d';
 import { Camera3D } from '../libs/camera3d';
+import building from '../assets/models/building_2.obj?raw';
+
+
 
 // Functions and arrays for the communication with the API
 import {
@@ -105,7 +108,8 @@ function setupObjects(scene, gl, programInfo) {
   // Create VAOs for the different shapes
   const baseCube = new Object3D(-1);
   baseCube.prepareVAO(gl, programInfo);
-
+  const baseCube2 = new Object3D(-1);
+  baseCube2.prepareVAO(gl, programInfo, building);
   /*
   // A scaled cube to use as the ground
   const ground = new Object3D(-3, [14, 0, 14]);
@@ -128,9 +132,9 @@ function setupObjects(scene, gl, programInfo) {
 
   // Copy the properties of the base objects
   for (const agent of obstacles) {
-    agent.arrays = baseCube.arrays;
-    agent.bufferInfo = baseCube.bufferInfo;
-    agent.vao = baseCube.vao;
+    agent.arrays = baseCube2.arrays;
+    agent.bufferInfo = baseCube2.bufferInfo;
+    agent.vao = baseCube2.vao;
     agent.scale = { x: 0.5, y: 0.5, z: 0.5 };
     agent.color = [0.5, 0.5, 0.5, 1.0];
     scene.addObject(agent);
@@ -165,8 +169,6 @@ function setupObjects(scene, gl, programInfo) {
     else tl.color = [1, 1, 1, 1];
     scene.addObject(tl);
 }
-
-
 }
 
 // Draw an object with its corresponding transformations
