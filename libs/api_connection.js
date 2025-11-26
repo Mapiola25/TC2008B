@@ -71,32 +71,21 @@ async function getAgents() {
             // Log the agent positions
             //console.log("getAgents positions: ", result.positions)
 
-            // Check if the agents array is empty
-            if (agents.length == 0) {
-                // Create new agents and add them to the agents array
-                for (const agent of result.positions) {
+            // Update existing agents and add new ones
+            for (const agent of result.positions) {
+                const current_agent = agents.find((object3d) => object3d.id == agent.id);
+
+                // Check if the agent exists in the agents array
+                if(current_agent != undefined){
+                    // Update the agent's position
+                    current_agent.oldPosArray = current_agent.posArray;
+                    current_agent.position = {x: agent.x, y: agent.y, z: agent.z};
+                } else {
+                    // Create new agent if it doesn't exist
                     const newAgent = new Object3D(agent.id, [agent.x, agent.y, agent.z]);
-                    // Store the initial position
                     newAgent['oldPosArray'] = newAgent.posArray;
                     agents.push(newAgent);
-                }
-                // Log the agents array
-                //console.log("Agents:", agents);
-
-            } else {
-                // Update the positions of existing agents
-                for (const agent of result.positions) {
-                    const current_agent = agents.find((object3d) => object3d.id == agent.id);
-
-                    // Check if the agent exists in the agents array
-                    if(current_agent != undefined){
-                        // Update the agent's position
-                        current_agent.oldPosArray = current_agent.posArray;
-                        current_agent.position = {x: agent.x, y: agent.y, z: agent.z};
-                    }
-
-                    //console.log("OLD: ", current_agent.oldPosArray,
-                    //            " NEW: ", current_agent.posArray);
+                    console.log("New car added:", agent.id, "at", agent.x, agent.y, agent.z);
                 }
             }
         }

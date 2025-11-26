@@ -1,4 +1,6 @@
 from mesa.discrete_space import CellAgent, FixedAgent
+import random
+from collections import Counter
 
 destinations = []
 
@@ -14,13 +16,88 @@ class Car(CellAgent):
             cell: The initial position of the agent
         """
         super().__init__(model)
+        self.destination = random.choice(destinations)
         self.cell = cell
+
+    def aStar():
+        pass
+
+    def move(self):
+        # print("Vecinos: ", random.choice(neighbors))
+        # print("Current coordinate: ", self.cell.coordinate)
+        # print("Destination of cell", self.destination)
+        # print(random.choice(neighbors))
+        neighbors = list(self.cell.neighborhood)
+        next_move = None
+        current_cell_agent = [type(agent).__name__ for agent in self.cell.agents]
+
+
+        print(current_cell_agent)
+
+
+        for n in neighbors:
+            # Buscar si hay Road y Traffic_Light en la celda vecina
+            road_agent = None
+            traffic_light = None
+
+            for agent in n.agents:
+                print("Agente en: ", n.coordinate, "Agentes ", agent)
+                if isinstance(agent, Road):
+                    road_agent = agent
+                elif isinstance(agent, Traffic_Light):
+                    traffic_light = agent
+
+            # Solo procesar si hay un Road (con o sin semáforo)
+            if road_agent:
+                # Calcular dirección del movimiento
+                dx = n.coordinate[0] - self.cell.coordinate[0]
+                dy = n.coordinate[1] - self.cell.coordinate[1]
+
+                # Verificar si el movimiento coincide con la dirección del Road
+                direction_matches = False
+                if road_agent.direction == "Right" and dx > 0 and dy == 0:
+                    direction_matches = True
+                elif road_agent.direction == "Left" and dx < 0 and dy == 0:
+                    direction_matches = True
+                elif road_agent.direction == "Up" and dy > 0 and dx == 0:
+                    direction_matches = True
+                elif road_agent.direction == "Down" and dy < 0 and dx == 0:
+                    direction_matches = True
+
+                # Si la dirección es correcta, verificar semáforo
+                if direction_matches:
+                    # Si hay semáforo, solo mover si está en verde (state = True)
+                    if traffic_light:
+                        if traffic_light.state:  # Verde
+                            next_move = n
+                            print(f"Semáforo en verde en {n.coordinate}, moviendo")
+                            break
+                        else:  # Rojo
+                            print(f"Semáforo en rojo en {n.coordinate}, esperando")
+                            # No asignar next_move, el coche espera
+                    else:
+                        # No hay semáforo, mover libremente
+                        next_move = n
+                        break
+
+            if next_move:
+                break
+
+        # print(directions)
+        # contador = Counter(directions.values())
+        # print(contador)
+        # mas_comun = contador.most_common(1)
+        # print(mas_comun)
+
+        if next_move:
+            self.move_to(next_move)
 
     def step(self):
         """ 
         Determines the new direction it will take, and then moves
         """
-        pass
+        self.move()
+        
 
 class Traffic_Light(FixedAgent):
     """
