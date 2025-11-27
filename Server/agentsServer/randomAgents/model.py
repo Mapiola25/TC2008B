@@ -92,7 +92,7 @@ class CityModel(Model):
 
         # Spawn new cars at specific locations (corners of the map)
         spawn_locations = [(0,0), (23, 0), (23, 24), (0, 24)]
-        if self.current_step == 1:
+        if self.current_step % self.car_spawn_rate == 0:
             for location in spawn_locations:
                 try:
                     cell = self.grid[location]
