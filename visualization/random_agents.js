@@ -32,8 +32,9 @@ import fsGLSL from '../assets/shaders/fs_color.glsl?raw';
 
 const scene = new Scene3D();
 
-/*
+
 // Variable for the scene settings
+
 const settings = {
     // Speed in degrees
     rotationSpeed: {
@@ -42,7 +43,7 @@ const settings = {
         z: 0,
     },
 };
-*/
+
 
 
 // Global variables
@@ -288,20 +289,52 @@ function setupViewProjection(gl) {
   return viewProjectionMatrix;
 }
 
-// Setup a ui.
 function setupUI() {
 
-  // const gui = new GUI();
+  const gui = new GUI();
 
-  // // Settings for the animation
-  // const animFolder = gui.addFolder('Animation:');
-  // animFolder.add( settings.rotationSpeed, 'x', 0, 360)
-  //     .decimals(2)
-  // animFolder.add( settings.rotationSpeed, 'y', 0, 360)
-  //     .decimals(2)
-  // animFolder.add( settings.rotationSpeed, 'z', 0, 360)
-  //     .decimals(2)
+  const settings = {
+    camSpeed: 1.0,          
+    lightIntensity: 1.0,    
+    carSpawnRate: 5,        
+    borrachitoOn: false   
+  };
 
+  const camFolder = gui.addFolder("Cámara");
+  camFolder.add(settings, "camSpeed", 0.1, 5.0, 0.1)
+           .name("Velocidad cámara")
+           .onChange(v => {
+             scene.camera.moveSpeed = v;  
+           });
+
+  const lightFolder = gui.addFolder("Luz");
+  lightFolder.add(settings, "lightIntensity", 0.1, 3.0, 0.1)
+             .name("Intensidad luz")
+             .onChange(v => {
+               if(scene.lights.length > 0){
+                 scene.lights[0].intensity = v; 
+               }
+             });
+
+  const logicFolder = gui.addFolder("Tráfico");
+
+  logicFolder.add(settings, "borrachitoOn")
+    .name("Modo Borrachito")
+    .onChange(value => {
+    });
+
+  logicFolder.add(settings, "carSpawnRate", 1, 50, 1)
+    .name("Spawn cada N steps")
+    .onChange(value => {
+      fetch("http://localhost:8585/setCarSpawnRate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rate: value })
+      })
+      .then(r => r.json())
+      .then(msg => console.log("Spawn rate actualizado:", msg))
+      .catch(err => console.error(err));
+    });
 }
 
 main();

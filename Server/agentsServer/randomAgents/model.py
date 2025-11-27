@@ -23,8 +23,7 @@ class CityModel(Model):
         dataDictionary = json.load(open(os.path.join(base_path, "city_files/mapDictionary.json")))
 
         self.num_agents = N
-        self.spawn_of_cars = 5
-
+        self.car_spawn_rate = spawn_of_cars
         self.current_step = 0
 
         # Load the map file. The map file is a text file where each character represents an agent.
@@ -89,7 +88,7 @@ class CityModel(Model):
         """Advance the model by one step."""
         self.agents.shuffle_do("step")
         self.current_step += 1
-
+        
 
         # Spawn new cars at specific locations (corners of the map)
         spawn_locations = [(0,0), (23, 0), (23, 24), (0, 24)]
