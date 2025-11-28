@@ -92,7 +92,7 @@ class CityModel(Model):
 
         # Spawn new cars at specific locations (corners of the map)
         spawn_locations = [(0,0), (23, 0), (23, 24), (0, 24)]
-        has car = False
+        has_car = False
         # Logica para detectar si en las celdas de spawn ya hay coches
         for location in spawn_locations:
             for agent in self.grid[location].agents:
