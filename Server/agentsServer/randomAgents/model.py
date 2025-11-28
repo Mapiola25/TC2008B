@@ -92,11 +92,22 @@ class CityModel(Model):
 
         # Spawn new cars at specific locations (corners of the map)
         spawn_locations = [(0,0), (23, 0), (23, 24), (0, 24)]
+        has car = False
+        # Logica para detectar si en las celdas de spawn ya hay coches
+        for location in spawn_locations:
+            for agent in self.grid[location].agents:
+                if isinstance(agent, Car):
+                    has_car = True 
+
+        
+        
+        # Si el step coincide con el numero de n steps por spawn de coche
         if self.current_step % self.car_spawn_rate == 0:
-            for location in spawn_locations:
-                try:
-                    cell = self.grid[location]
-                    agent = Car(self, cell)
-                    print(f"New car spawned at {location}")
-                except Exception as e:
-                    print(f"Error spawning car at {location}: {e}")
+            if has_car == False: # Si no hay un coche ahi esperando para salir
+                for location in spawn_locations:
+                    try:
+                        cell = self.grid[location]
+                        agent = Car(self, cell)
+                        print(f"New car spawned at {location}")
+                    except Exception as e:
+                        print(f"Error spawning car at {location}: {e}")
