@@ -39,13 +39,24 @@ class Car(CellAgent):
             # Buscar si hay Road y Traffic_Light en la celda vecina
             road_agent = None
             traffic_light = None
+            has_car = False
 
             for agent in n.agents:
                 print("Agente en: ", n.coordinate, "Agentes ", agent)
+                if isinstance(agent, Car):
+                    has_car = True
+                    break
                 if isinstance(agent, Road):
                     road_agent = agent
                 elif isinstance(agent, Traffic_Light):
                     traffic_light = agent
+
+            # Si hay un coche, saltar esta celda vecina
+            if has_car:
+                continue
+
+            if traffic_light and traffic_light.state == False:
+                continue
 
             # Solo procesar si hay un Road (con o sin semáforo)
             if road_agent:

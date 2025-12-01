@@ -235,6 +235,26 @@ def updateModel():
         except Exception as e:
             print(e)
             return jsonify({"message": "Error during step."}), 500
+        
+@app.route('/setCarSpawnRate', methods=['POST'])
+@cross_origin()
+def setCarSpawnRate():
+    global randomModel
+
+    try:
+        data = request.json
+        new_rate = int(data.get("rate", 5))
+
+        # Guardamos el valor en el modelo MESA
+        randomModel.car_spawn_rate = new_rate
+
+        print(f"[SERVER] spawnRate actualizado a {new_rate}")
+
+        return jsonify({"message": f"spawnRate actualizado a {new_rate}"}), 200
+
+    except Exception as e:
+        print("ERROR en setCarSpawnRate:", e)
+        return jsonify({"error": "No se pudo actualizar spawnRate"}), 500
 
 
 if __name__=='__main__':
