@@ -39,10 +39,14 @@ def initModel():
     # Reset current step
     currentStep = 0
 
-    print(f"Model parameters: N={number_agents}")
+    print(f"[SERVER] Model parameters: N={number_agents}")
+    print(f"[SERVER] Resetting model (currentStep={currentStep})...")
 
     # Create the model using the parameters sent by the application
     randomModel = CityModel(N=number_agents)
+
+    print(f"[SERVER] Model created successfully!")
+    print(f"[SERVER] Ready to start simulation")
 
     # Return a message to saying that the model was created successfully
     return jsonify({"message": f"Parameters received, model initiated.\nNumber of agents: {number_agents}"})

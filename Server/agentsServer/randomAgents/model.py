@@ -18,6 +18,12 @@ class CityModel(Model):
 
         super().__init__(seed=seed)
 
+        # IMPORTANTE: Limpiar la lista global de destinos al reiniciar el modelo
+        # Esto evita que se acumulen destinos de modelos anteriores
+        global destinations
+        destinations.clear()
+        print("[MODEL] Lista de destinos limpiada al inicializar modelo")
+
         # Load the map dictionary. The dictionary maps the characters in the map file to the corresponding agent.
         base_path = os.path.dirname(__file__)
         dataDictionary = json.load(open(os.path.join(base_path, "city_files/mapDictionary.json")))
@@ -80,15 +86,21 @@ class CityModel(Model):
                         agent = Destination(self, cell)
 
 
-                
+
 
         self.running = True
+
+        # VALIDACIÓN FINAL: Verificar que se cargaron destinos
+        if not destinations:
+            raise RuntimeError(f"Error crítico: El modelo se inicializó sin destinos. Revise el archivo de mapa.")
+
+        print(f"[MODEL] Modelo inicializado correctamente con {len(destinations)} destinos: {[d.coordinate for d in destinations]}")
 
     def step(self):
         """Advance the model by one step."""
         self.agents.shuffle_do("step")
         self.current_step += 1
-        
+
 
         # Spawn new cars at specific locations (corners of the map)
         spawn_locations = [(0,0), (23, 0), (23, 24), (0, 24)]
@@ -97,17 +109,22 @@ class CityModel(Model):
         for location in spawn_locations:
             for agent in self.grid[location].agents:
                 if isinstance(agent, Car):
-                    has_car = True 
+                    has_car = True
 
-        
-        
+
+
         # Si el step coincide con el numero de n steps por spawn de coche
         if self.current_step % self.car_spawn_rate == 0:
             if has_car == False: # Si no hay un coche ahi esperando para salir
+                # VALIDACIÓN: Solo spawnear si hay destinos disponibles
+                if not destinations:
+                    print(f"[WARNING] No se pueden spawnear coches: no hay destinos disponibles")
+                    return
+
                 for location in spawn_locations:
                     try:
                         cell = self.grid[location]
                         agent = Car(self, cell)
-                        print(f"New car spawned at {location}")
+                        print(f"[SPAWN] New car spawned at {location} -> destination: {agent.destination.coordinate}")
                     except Exception as e:
-                        print(f"Error spawning car at {location}: {e}")
+                        print(f"[ERROR] Error spawning car at {location}: {e}")
