@@ -46,6 +46,35 @@ class Car(CellAgent):
 
         print(f"[CAR {self.unique_id}] Creado en {self.cell.coordinate} -> Destino: {self.destination.coordinate}")
 
+    def get_orthogonal_neighbors(self, cell):
+        """
+        Obtiene solo los vecinos ortogonales (arriba, abajo, izquierda, derecha).
+        Filtra vecinos diagonales del neighborhood de Mesa.
+
+        Args:
+            cell: Celda de la cual obtener vecinos
+
+        Returns:
+            List[Cell]: Lista de celdas vecinas ortogonales (máximo 4)
+        """
+        orthogonal_neighbors = []
+        current_x, current_y = cell.coordinate
+
+        # Solo considerar las 4 direcciones IZQUIERDA DERECHA ARRIBA ABAJO
+        potential_neighbors = [
+            (current_x + 1, current_y),  # RIGHT
+            (current_x - 1, current_y),  # LEFT
+            (current_x, current_y + 1),  # UP
+            (current_x, current_y - 1),  # DOWN
+        ]
+
+        for neighbor in cell.neighborhood:
+            # Solo agregar si está en las posiciones ortogonales
+            if neighbor.coordinate in potential_neighbors:
+                orthogonal_neighbors.append(neighbor)
+
+        return orthogonal_neighbors
+
     def reconstruct_path(self, parent_map, current_cell):
         """
         Reconstruye la ruta desde el inicio hasta el destino.
@@ -65,7 +94,7 @@ class Car(CellAgent):
             path.append(current_cell) # Iteramos mandando las diferentes celulas a la lista (nos la dará en orden inverso)
             current_coord = current_cell.coordinate # Cambiamos coordenada actual
 
-        path.reverse()  
+        path.reverse()
         return path
 
     def aStar(self, avoid_cars=False):
@@ -81,9 +110,17 @@ class Car(CellAgent):
         start = self.cell
         goal = self.destination
 
-        # Verificar si ya estamos en el destino
-        if start == goal:
+        # Verificar si ya estamos en el destino (comparar por coordenadas)
+        if start.coordinate == goal.coordinate:
             return [start]
+
+        # Debug: información de inicio (solo para debugging)
+        # start_road = None
+        # for agent in start.agents:
+        #     if isinstance(agent, Road):
+        #         start_road = agent
+        #         break
+        # print(f"[A*] Inicio: {start.coordinate}, Road: {start_road.direction if start_road else 'None'}, Destino: {goal.coordinate}")
 
         # Inicializar estructuras de datos
         open_set = []
@@ -97,6 +134,7 @@ class Car(CellAgent):
         # Agregar nodo inicial a open_set
         heapq.heappush(open_set, (f_score[start.coordinate], start.coordinate, start)) # Grafo
 
+        explored_count = 0
         while open_set:
             # Obtener el nodo con menor f_score
             result = heapq.heappop(open_set)
@@ -104,16 +142,28 @@ class Car(CellAgent):
             current_coord = result[1]
             current_cell = result[2]
 
-            # Si llegamos al destino, reconstruir ruta
-            if current_cell == goal:
-                return self.reconstruct_path(parent_map, current_cell)
+            explored_count += 1
+
+            # Si llegamos al destino, reconstruir ruta (comparar por coordenadas)
+            if current_cell.coordinate == goal.coordinate:
+                path = self.reconstruct_path(parent_map, current_cell)
+                print(f"[A*] ✓ Ruta encontrada desde {start.coordinate} a {goal.coordinate}")
+                print(f"[A*] Longitud de ruta: {len(path)} pasos")
+                print(f"[A*] Primera celda: {path[0].coordinate}, Última celda: {path[-1].coordinate}")
+                print(f"[A*] ¿Última celda es destino? {path[-1].coordinate == goal.coordinate}")
+                return path
 
             # Marcar como explorado
             closed_set.add(current_coord)
 
-            # Explorar vecinos
-            for neighbor in current_cell.neighborhood:
+            # Explorar vecinos ORTOGONALES únicamente (no diagonales)
+            neighbors_checked = 0
+            neighbors_valid = 0
+            orthogonal_neighbors = self.get_orthogonal_neighbors(current_cell)
+
+            for neighbor in orthogonal_neighbors:
                 neighbor_coord = neighbor.coordinate
+                neighbors_checked += 1
 
                 # Saltar si ya fue explorado
                 if neighbor_coord in closed_set:
@@ -126,21 +176,26 @@ class Car(CellAgent):
                 if direction is None:
                     continue
 
-                # Si estamos en la celda inicial (spawn point) o en una celda con Destination,
-                # permitir moverse sin verificar dirección
-                # Esto permite que los coches salgan de spawn points que no tienen Road
-                is_spawn_or_destination = current_cell == start or any(
-                    isinstance(agent, Destination) for agent in current_cell.agents
-                )
+                # Caso especial: Si estamos en la celda de inicio (spawn point),
+                # permitir moverse en cualquier dirección para el primer paso (comparar por coordenadas)
+                is_first_move = (current_cell.coordinate == start.coordinate)
 
-                if is_spawn_or_destination:
-                    # Solo verificar que la celda vecina no sea un obstáculo y tenga Road o Destination
-                    if not self.is_walkable(neighbor, None, goal, allow_lane_change=True, check_cars=avoid_cars):
+                if is_first_move:
+                    # Desde spawn point, solo verificar que la celda destino sea transitable
+                    # sin restricción de dirección
+                    if not self.is_walkable(neighbor, None, goal, allow_lane_change=True, check_cars=avoid_cars, from_cell=current_cell):
                         continue
                 else:
-                    # Verificar si es transitable con la dirección correcta
-                    if not self.is_walkable(neighbor, direction, goal, allow_lane_change=True, check_cars=avoid_cars):
+                    # Después del primer movimiento, verificar dirección estrictamente
+                    if not self.is_walkable(neighbor, direction, goal, allow_lane_change=True, check_cars=avoid_cars, from_cell=current_cell):
                         continue
+
+                neighbors_valid += 1
+
+                # Verificar si estamos en spawn point o destination para penalizaciones de costo (comparar por coordenadas)
+                is_spawn_or_destination = current_cell.coordinate == start.coordinate or any(
+                    isinstance(agent, Destination) for agent in current_cell.agents
+                )
 
                 # Calcular nuevo g_score con penalización por cambio de carril
                 base_cost = 1
@@ -165,7 +220,7 @@ class Car(CellAgent):
                         heapq.heappush(open_set, (f_score[neighbor_coord], neighbor_coord, neighbor))
 
         # No se encontró ruta
-        print(f"No se encontró ruta desde {start.coordinate} hasta {goal.coordinate}")
+        print(f"[A*] ERROR: No se encontró ruta desde {start.coordinate} hasta {goal.coordinate} (explorados: {explored_count} nodos)")
         return None
 
     def get_direction(self, from_cell, to_cell):
@@ -246,7 +301,7 @@ class Car(CellAgent):
 
         return False  # Es movimiento adelante en el carril
 
-    def is_walkable(self, cell, direction_from_parent=None, goal=None, allow_lane_change=True, check_cars=False):
+    def is_walkable(self, cell, direction_from_parent=None, goal=None, allow_lane_change=True, check_cars=False, from_cell=None):
         """
         Verifica si un coche puede moverse a una celda específica.
 
@@ -256,15 +311,22 @@ class Car(CellAgent):
             goal: Celda de destino (para permitir siempre llegar al destino)
             allow_lane_change: Si es True, permite movimientos laterales (cambio de carril)
             check_cars: Si es True, penaliza celdas con coches (para recalculación de rutas)
+            from_cell: Celda de origen (para verificar cambios de carril válidos)
 
         Returns:
             bool: True si la celda es transitable
         """
-        # Si esta celda es el destino final, siempre permitir el movimiento
-        if goal and cell == goal:
+        # PRIORIDAD MÁXIMA: Si esta celda es el destino final, SIEMPRE permitir el movimiento
+        # Los coches deben poder llegar a su destino desde cualquier dirección (comparar por coordenadas)
+        if goal and cell.coordinate == goal.coordinate:
             # Verificar que no haya obstáculo en el destino
             has_obstacle = any(isinstance(agent, Obstacle) for agent in cell.agents)
-            return not has_obstacle
+            if not has_obstacle:
+                print(f"[WALKABLE] ✓ Destino {cell.coordinate} ES ALCANZABLE (sin obstáculos)")
+                return True
+            else:
+                print(f"[WALKABLE] ✗ ERROR: Destino {cell.coordinate} tiene obstáculo!")
+                return False
 
         # Buscar agentes en la celda
         road_agent = None
@@ -294,8 +356,10 @@ class Car(CellAgent):
         if has_car and check_cars:
             return False
 
-        # Si hay un destino en esta celda, es transitable
+        # Si hay un destino en esta celda, SIEMPRE es transitable
+        # Los coches deben poder llegar a cualquier celda de destino
         if has_destination:
+            # print(f"[WALKABLE] Celda con Destination {cell.coordinate} es transitable")
             return True
 
         # Debe haber una calle
@@ -304,14 +368,39 @@ class Car(CellAgent):
 
         # Verificar dirección si se especifica
         if direction_from_parent:
-            # Si la dirección no coincide con el Road
-            if road_agent.direction != direction_from_parent:
-                # Si permitimos cambio de carril, la celda es transitable
-                # (aunque será penalizada en el costo)
-                if allow_lane_change:
+            # Caso especial: Si la celda origen no tiene Road (spawn point o destination)
+            # permitir entrar a cualquier Road adyacente sin restricción de dirección
+            if from_cell:
+                from_has_road = any(isinstance(agent, Road) for agent in from_cell.agents)
+                if not from_has_road:
+                    # Estamos saliendo de un spawn point o destination
+                    # Permitir entrar a cualquier Road adyacente
                     return True
-                else:
-                    return False
+
+            # REGLA PRINCIPAL: Verificar que NO estemos yendo en SENTIDO CONTRARIO
+            # Se considera sentido contrario cuando:
+            # - Movimiento es "Up" y Road es "Down" (o viceversa)
+            # - Movimiento es "Left" y Road es "Right" (o viceversa)
+
+            opposite_directions = {
+                "Up": "Down",
+                "Down": "Up",
+                "Left": "Right",
+                "Right": "Left"
+            }
+
+            # Si estamos intentando ir en sentido contrario al Road, RECHAZAR
+            if opposite_directions.get(direction_from_parent) == road_agent.direction:
+                return False
+
+            # Si la dirección coincide exactamente, PERMITIR (movimiento adelante)
+            if road_agent.direction == direction_from_parent:
+                return True
+
+            # Si llegamos aquí, es un movimiento perpendicular (giro)
+            # Los giros están permitidos (por ejemplo, de calle "Right" a calle "Up")
+            # Solo verificamos que no sea sentido contrario (ya verificado arriba)
+            return True
 
         return True
 
@@ -320,31 +409,65 @@ class Car(CellAgent):
         Mueve el coche siguiendo la ruta calculada por A*.
         Recalcula la ruta si está bloqueado por mucho tiempo para buscar cambios de carril.
         """
+        # PRIMERO: Verificar si ya estamos en el destino (comparar por COORDENADAS)
+        # Esto debe estar ANTES de cualquier otra lógica
+        current_coord = self.cell.coordinate
+        dest_coord = self.destination.coordinate
+
+        # DEBUG: Logging detallado para algunos coches
+        if self.unique_id in [626, 630, 632, 634, 638, 650, 655, 659]:
+            
+            # Verificar si estamos en ALGUNA celda de Destination
+            has_any_dest = any(isinstance(agent, Destination) for agent in self.cell.agents)
+            
+
+        if current_coord == dest_coord:
+            self.model.cars_arrived += 1
+
+            # IMPORTANTE: Primero sacar el coche de la celda
+            # Mesa no lo hace automáticamente cuando removes el agente
+            if self.cell is not None:
+                self.cell.remove_agent(self)
+
+            # Luego eliminar el coche del modelo
+            self.model.agents.remove(self)
+            return
+
         # Si no hay ruta calculada, calcularla
         if self.path is None:
+            print(f"[CAR {self.unique_id}] Calculando ruta desde {current_coord} a {dest_coord}")
             self.path = self.aStar()
             if self.path is None:
-                print(f"Coche en {self.cell.coordinate}: No se puede llegar al destino {self.destination.coordinate}")
+                
                 return
             self.path_index = 0
+            
 
-        # Si ya llegamos al destino
+        # Si ya llegamos al final de la ruta
         if self.path_index >= len(self.path) - 1:
-            print(f"Coche llegó al destino {self.destination.coordinate}")
-            # Aquí puedes eliminar el coche o asignarle un nuevo destino
-            return
+            # Verificar si la última celda es el destino (comparar por coordenadas)
+            if self.path[-1].coordinate == self.destination.coordinate:
+               
+               
+                # Continuar para moverse al destino si aún no estamos ahí
+                if self.cell.coordinate == self.destination.coordinate:
+                    return
+            else:
+               
+                self.path = None
+                return
 
         # Si estamos bloqueados por mucho tiempo, recalcular ruta para buscar alternativas
         if self.stuck_counter >= 3:
-            print(f"Coche en {self.cell.coordinate}: Bloqueado, recalculando ruta evitando coches...")
+            print(f"[CAR {self.unique_id}] Bloqueado en {self.cell.coordinate}, recalculando ruta...")
             # Recalcular evitando coches para buscar cambios de carril
             self.path = self.aStar(avoid_cars=True)
             if self.path is None:
                 # Si no encuentra ruta evitando coches, intentar sin evitarlos
-                print(f"Coche en {self.cell.coordinate}: No hay ruta alternativa, usando ruta original...")
+                
                 self.path = self.aStar(avoid_cars=False)
                 if self.path is None:
-                    print(f"Coche en {self.cell.coordinate}: No se puede llegar al destino {self.destination.coordinate}")
+                    
                     return
             self.path_index = 0
             self.stuck_counter = 0
@@ -352,11 +475,42 @@ class Car(CellAgent):
         # Siguiente celda en la ruta
         next_cell = self.path[self.path_index + 1]
 
-        # SEGURIDAD: Verificar que el movimiento no sea diagonal
+        # Verificar si la siguiente celda es el destino (comparar por coordenadas)
+        is_next_destination = (next_cell.coordinate == self.destination.coordinate)
+        if is_next_destination:
+            print(f"[CAR {self.unique_id}] ⭐ Siguiente celda ES EL DESTINO {next_cell.coordinate}")
+
+        # SEGURIDAD 1: Verificar que el movimiento sea ortogonal (no diagonal)
+        current_x, current_y = self.cell.coordinate
+        next_x, next_y = next_cell.coordinate
+        dx = abs(next_x - current_x)
+        dy = abs(next_y - current_y)
+
+        # Un movimiento válido debe tener exactamente 1 paso en un solo eje
+        if dx + dy != 1:
+            
+            # Recalcular ruta ya que algo salió mal
+            self.path = None
+            return
+
+        # SEGURIDAD 2: Verificar dirección del movimiento
         movement_direction = self.get_direction(self.cell, next_cell)
         if movement_direction is None:
-            print(f"ERROR: Intento de movimiento diagonal detectado desde {self.cell.coordinate} a {next_cell.coordinate}")
+            print(f"[CAR {self.unique_id}] ERROR: Dirección de movimiento inválida desde {self.cell.coordinate} a {next_cell.coordinate}")
             # Recalcular ruta ya que algo salió mal
+            self.path = None
+            return
+
+        # Verificar que el movimiento sigue siendo válido según las reglas de tráfico
+        is_walkable = self.is_walkable(next_cell, movement_direction, self.destination, from_cell=self.cell)
+
+
+
+        if not is_walkable:
+            print(f"[CAR {self.unique_id}] ERROR: Movimiento inválido desde {self.cell.coordinate} a {next_cell.coordinate} (dir: {movement_direction})")
+            if is_next_destination:
+                print(f"[CAR {self.unique_id}] ⚠️ CRÍTICO: ¡El destino está marcado como NO WALKABLE!")
+            # La ruta ya no es válida, recalcular
             self.path = None
             return
 
@@ -369,14 +523,21 @@ class Car(CellAgent):
 
         # Si hay semáforo y está en rojo, esperar
         if traffic_light and not traffic_light.state:
-            print(f"Coche en {self.cell.coordinate}: Esperando semáforo en rojo")
+            if self.stuck_counter % 10 == 0:  # Log cada 10 pasos
+                print(f"[CAR {self.unique_id}] Esperando semáforo en rojo en {next_cell.coordinate}")
             self.stuck_counter += 1
             return
 
         # Verificar si hay otro coche en la siguiente celda
         has_car = any(isinstance(agent, Car) for agent in next_cell.agents)
         if has_car:
-            print(f"Coche en {self.cell.coordinate}: Esperando a otro coche (bloqueado {self.stuck_counter+1} pasos)")
+            if is_next_destination:
+                print(f"[CAR {self.unique_id}] ⚠️ HAY OTRO COCHE EN EL DESTINO {next_cell.coordinate}!")
+                cars_in_dest = [agent for agent in next_cell.agents if isinstance(agent, Car)]
+                for car in cars_in_dest:
+                    print(f"  - Car {car.unique_id} en destino")
+            if self.stuck_counter % 10 == 0:  # Log cada 10 pasos
+                print(f"[CAR {self.unique_id}] Esperando a otro coche en {next_cell.coordinate} (bloqueado {self.stuck_counter+1} pasos)")
             self.stuck_counter += 1
             return
 
@@ -384,7 +545,6 @@ class Car(CellAgent):
         self.move_to(next_cell)
         self.path_index += 1
         self.stuck_counter = 0  # Resetear contador al moverse exitosamente
-        print(f"Coche movido a {self.cell.coordinate}")
 
     def step(self):
         """ 

@@ -31,6 +31,8 @@ class CityModel(Model):
         self.num_agents = N
         self.car_spawn_rate = spawn_of_cars
         self.current_step = 0
+        self.cars_spawned = 0  # Contador de coches generados
+        self.cars_arrived = 0  # Contador de coches que llegaron al destino
 
         # Load the map file. The map file is a text file where each character represents an agent.
         with open(os.path.join(base_path, "city_files/2022_base.txt")) as baseFile:
@@ -96,35 +98,52 @@ class CityModel(Model):
 
         print(f"[MODEL] Modelo inicializado correctamente con {len(destinations)} destinos: {[d.coordinate for d in destinations]}")
 
+        # Verificar spawn points y sus Roads
+        spawn_locations = [(0,0), (23, 0), (23, 24), (0, 24)]
+        for spawn_loc in spawn_locations:
+            cell = self.grid[spawn_loc]
+            road_agents = [agent for agent in cell.agents if isinstance(agent, Road)]
+            if road_agents:
+                print(f"[MODEL] Spawn point {spawn_loc} tiene Road con dirección: {road_agents[0].direction}")
+            else:
+                print(f"[MODEL] WARNING: Spawn point {spawn_loc} NO tiene Road!")
+
     def step(self):
         """Advance the model by one step."""
         self.agents.shuffle_do("step")
         self.current_step += 1
 
+        # Mostrar estadísticas cada 20 steps
+        if self.current_step % 20 == 0:
+            active_cars = sum(1 for agent in self.agents if isinstance(agent, Car))
+            print(f"\n[STATS Step {self.current_step}] Coches activos: {active_cars} | Spawneados: {self.cars_spawned} | Llegaron: {self.cars_arrived}")
+            if self.cars_spawned > 0:
+                print(f"[STATS] Tasa de éxito: {(self.cars_arrived/self.cars_spawned*100):.1f}%\n")
+
 
         # Spawn new cars at specific locations (corners of the map)
         spawn_locations = [(0,0), (23, 0), (23, 24), (0, 24)]
-        has_car = False
-        # Logica para detectar si en las celdas de spawn ya hay coches
-        for location in spawn_locations:
-            for agent in self.grid[location].agents:
-                if isinstance(agent, Car):
-                    has_car = True
-
-
 
         # Si el step coincide con el numero de n steps por spawn de coche
         if self.current_step % self.car_spawn_rate == 0:
-            if has_car == False: # Si no hay un coche ahi esperando para salir
-                # VALIDACIÓN: Solo spawnear si hay destinos disponibles
-                if not destinations:
-                    print(f"[WARNING] No se pueden spawnear coches: no hay destinos disponibles")
-                    return
+            # VALIDACIÓN: Solo spawnear si hay destinos disponibles
+            if not destinations:
+                print(f"[WARNING] No se pueden spawnear coches: no hay destinos disponibles")
+                return
 
-                for location in spawn_locations:
+            # Verificar CADA spawn location individualmente
+            for location in spawn_locations:
+                # Verificar si hay un coche en ESTA location específica
+                has_car_here = any(isinstance(agent, Car) for agent in self.grid[location].agents)
+
+                # Solo spawnear si NO hay un coche en esta location
+                if not has_car_here:
                     try:
                         cell = self.grid[location]
                         agent = Car(self, cell)
-                        print(f"[SPAWN] New car spawned at {location} -> destination: {agent.destination.coordinate}")
+                        self.cars_spawned += 1
+                        print(f"[SPAWN] Car #{self.cars_spawned} spawned at {location} -> destination: {agent.destination.coordinate}")
                     except Exception as e:
                         print(f"[ERROR] Error spawning car at {location}: {e}")
+                else:
+                    print(f"[SPAWN] Skipping {location}: already has a car waiting")
