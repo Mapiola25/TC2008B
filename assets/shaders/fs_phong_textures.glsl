@@ -1,48 +1,42 @@
 #version 300 es
-precision highp float;
+precision mediump float;
 
 in vec3 v_normal;
-in vec3 v_surfaceToLight;
-in vec3 v_surfaceToView;
-in vec2 v_texCoord;
+in vec3 v_surfaceWorldPosition;
+in vec2 v_texcoord;
 
+uniform vec3 u_viewWorldPosition;
+uniform vec3 u_lightWorldPosition;
+uniform vec3 u_ambientColor;
+uniform vec3 u_diffuseColor;
+uniform vec3 u_specularColor;
 uniform float u_shininess;
-
 uniform sampler2D u_texture;
-
-uniform vec4 u_ambientLight;
-uniform vec4 u_diffuseLight;
-uniform vec4 u_specularLight;
 
 out vec4 outColor;
 
 void main() {
-    // v_normal must be normalized because the shader will interpolate
-    // it for each pixel
-    vec3 normal = normalize(v_normal);
+  vec3 normal = normalize(v_normal);
+  vec3 surfaceToLightDirection = normalize(u_lightWorldPosition - v_surfaceWorldPosition);
+  vec3 surfaceToViewDirection = normalize(u_viewWorldPosition - v_surfaceWorldPosition);
+  vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
 
-    vec3 surfToLigthDirection = normalize(v_surfaceToLight);
-    vec3 surfToViewDirection = normalize(v_surfaceToView);
+  // Obtener el color base desde la textura
+  vec4 texColor = texture(u_texture, v_texcoord);
 
-    // Finding the reflection vector
-    // https://en.wikipedia.org/wiki/Phong_reflection_model
-    vec3 reflectionVector = (2.0 * dot(surfToLigthDirection, normal)
-        * normal - surfToLigthDirection);
+  // Cálculo de luz difusa (Lambert)
+  float light = max(dot(normal, surfaceToLightDirection), 0.0);
+  
+  // Cálculo de luz especular (Blinn-Phong)
+  float specular = 0.0;
+  if (light > 0.0) {
+    specular = pow(max(dot(normal, halfVector), 0.0), u_shininess);
+  }
 
-    float light = max(dot(normal, surfToLigthDirection), 0.0);
-    float specular = 0.0;
-    if (light > 0.0) {
-        specular = pow(max(dot(surfToViewDirection, reflectionVector), 0.0), u_shininess);
-    }
+  // Combinar ambiente + difusa + especular
+  vec3 finalColor = u_ambientColor * texColor.rgb +
+                    texColor.rgb * light +
+                    u_specularColor * specular;
 
-    // Set the color of the fragment from the texture
-    vec4 color = texture(u_texture, v_texCoord);
-
-    // Compute the three parts of the Phong lighting model
-    vec4 ambientColor = color * u_ambientLight;
-    vec4 diffuseColor = light * color * u_diffuseLight;
-    vec4 specularColor = specular * color * u_specularLight;
-
-    // Use the color of the texture on the object
-    outColor = ambientColor + diffuseColor + specularColor;
+  outColor = vec4(finalColor, texColor.a);
 }
