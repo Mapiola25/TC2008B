@@ -210,6 +210,7 @@ function setupCarAgent(agent) {
   agent.texture = carTexture;
   agent.scale = { x: 0.35, y: 0.35, z: 0.35 };
   agent.color = [1, 1, 1, 1];
+  agent.isCar = true;
 
   if (!agent.rotRad) {
     agent.rotRad = { x: 0, y: 0, z: 0 };
@@ -629,7 +630,13 @@ async function drawScene() {
   gl.bindVertexArray(skybox.vao);
   twgl.drawBufferInfo(gl, skybox.bufferInfo);
 
-  // ----- Coches -----
+  for (let i = scene.objects.length - 1; i >= 0; i--) {
+    const obj = scene.objects[i];
+    if (obj.isCar && !agents.some(agent => agent.id === obj.id)) {
+      scene.objects.splice(i, 1);
+    }
+  }
+
   for (const agent of agents) {
     if (!agent.bufferInfo) {
       setupCarAgent(agent);

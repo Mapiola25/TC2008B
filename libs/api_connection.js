@@ -60,38 +60,36 @@ async function initAgentsModel() {
  */
 async function getAgents() {
     try {
-        // Send a GET request to the agent server to retrieve the agent positions
         let response = await fetch(agent_server_uri + "getAgents");
 
-        // Check if the response was successful
         if (response.ok) {
-            // Parse the response as JSON
             let result = await response.json();
 
-            // Log the agent positions
-            //console.log("getAgents positions: ", result.positions)
+            const serverAgentIds = new Set(result.positions.map(agent => agent.id));
 
-            // Update existing agents and add new ones
             for (const agent of result.positions) {
                 const current_agent = agents.find((object3d) => object3d.id == agent.id);
 
-                // Check if the agent exists in the agents array
                 if(current_agent != undefined){
-                    // Update the agent's position
                     current_agent.oldPosArray = current_agent.posArray;
                     current_agent.position = {x: agent.x, y: agent.y, z: agent.z};
                 } else {
-                    // Create new agent if it doesn't exist
                     const newAgent = new Object3D(agent.id, [agent.x, agent.y, agent.z]);
                     newAgent['oldPosArray'] = newAgent.posArray;
                     agents.push(newAgent);
                     console.log("New car added:", agent.id, "at", agent.x, agent.y, agent.z);
                 }
             }
+
+            for (let i = agents.length - 1; i >= 0; i--) {
+                if (!serverAgentIds.has(agents[i].id)) {
+                    console.log("Removing car:", agents[i].id);
+                    agents.splice(i, 1);
+                }
+            }
         }
 
     } catch (error) {
-        // Log any errors that occur during the request
         console.log(error);
     }
 }
