@@ -19,6 +19,7 @@ const obstacles = [];
 const roads = [];
 const tlights= [];
 const destinations = [];
+let currentStep = 0;
 
 // Define the data object
 const initData = {
@@ -67,6 +68,7 @@ async function getAgents() {
 
             const serverAgentIds = new Set(result.positions.map(agent => agent.id));
 
+            // Update existing agents and add new ones
             for (const agent of result.positions) {
                 const current_agent = agents.find((object3d) => object3d.id == agent.id);
 
@@ -77,13 +79,12 @@ async function getAgents() {
                     const newAgent = new Object3D(agent.id, [agent.x, agent.y, agent.z]);
                     newAgent['oldPosArray'] = newAgent.posArray;
                     agents.push(newAgent);
-                    console.log("New car added:", agent.id, "at", agent.x, agent.y, agent.z);
                 }
             }
 
+            // Eliminar agentes que ya no están en el servidor (llegaron a su destino)
             for (let i = agents.length - 1; i >= 0; i--) {
                 if (!serverAgentIds.has(agents[i].id)) {
-                    console.log("Removing car:", agents[i].id);
                     agents.splice(i, 1);
                 }
             }
@@ -214,6 +215,9 @@ async function update() {
 
         // Check if the response was successful
         if (response.ok) {
+            let result = await response.json();
+            currentStep = result.currentStep || 0;
+            
             // Retrieve the updated agent positions
             await getAgents();
             await getTlights();
@@ -235,4 +239,4 @@ async function update() {
     }
 }
 
-export { agents, obstacles, roads, destinations, initAgentsModel, update, getAgents, getObstacles, getRoads, tlights, getTlights, getDestinations };
+export { agents, obstacles, roads, destinations, initAgentsModel, update, getAgents, getObstacles, getRoads, tlights, getTlights, getDestinations, currentStep };
