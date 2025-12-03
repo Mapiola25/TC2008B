@@ -44,7 +44,7 @@ class Camera3D {
         // Transformation speeds
         this.rotationSpeed = 0.02;
         this.panSpeed = 0.5;
-        this.zoomSpeed = 2.0;
+        this.zoomSpeed = 5.0;
 
         // Panning variables
         this.panOffset = [0, 0, 0];
@@ -103,8 +103,8 @@ class Camera3D {
 
     zoom(delta) {
         this.distance += delta * this.zoomSpeed;
-        // Limit the near and far distances of the camera
-        this.distance = Math.max(10, Math.min(50, this.distance));
+        // Limit the near distance of the camera
+        this.distance = Math.max(5, this.distance);
     }
 
     setupControls() {
@@ -133,13 +133,13 @@ class Camera3D {
         }
 
         // Panning
-        if (this.keysPressed['d'] || this.keysPressed['Q']) {
+        if (this.keysPressed['d']) {
             this.pan(-1, 0);
         }
         if (this.keysPressed['a'] || this.keysPressed['E']) {
             this.pan(1, 0);
         }
-        if (this.keysPressed['w'] || this.keysPressed['Z']) {
+        if (this.keysPressed['w']) {
             this.pan(0, -1);
         }
         if (this.keysPressed['s'] || this.keysPressed['C']) {
@@ -152,6 +152,14 @@ class Camera3D {
         }
         if (this.keysPressed['-'] || this.keysPressed['_']) {
             this.zoom(1); // Zoom out
+        }
+
+        // Move camera up/down
+        if (this.keysPressed['q'] || this.keysPressed['Q']) {
+            this.panOffset[1] += 0.5;
+        }
+        if (this.keysPressed['z'] || this.keysPressed['Z']) {
+            this.panOffset[1] -= 0.5;
         }
     }
 
