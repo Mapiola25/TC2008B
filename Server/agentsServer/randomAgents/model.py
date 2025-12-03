@@ -34,7 +34,7 @@ class CityModel(Model):
         self.borrachito_mode = False  # Modo borrachito desactivado por defecto
 
         # Load the map file. The map file is a text file where each character represents an agent.
-        with open(os.path.join(base_path, "city_files/2022_base.txt")) as baseFile:
+        with open(os.path.join(base_path, "city_files/2025_base.txt")) as baseFile:
             lines = baseFile.readlines()
             self.width = len(lines[0])
             self.height = len(lines)
@@ -97,8 +97,8 @@ class CityModel(Model):
         self.current_step += 1
 
 
-        # Process spawn logic
-        spawn_locations = [(0,0), (23, 0), (23, 24), (0, 24)]
+        # Process spawn logic - Todas las 4 esquinas del mapa
+        spawn_locations = [(0, 0), (35, 0), (0, 34), (35, 34)]
 
         # Check spawn timing
         if self.current_step % self.car_spawn_rate == 0:

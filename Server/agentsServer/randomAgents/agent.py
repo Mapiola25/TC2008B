@@ -533,7 +533,7 @@ class Car(CellAgent):
                 from_has_road = any(isinstance(agent, Road) for agent in from_cell.agents)
                 from_has_destination = any(isinstance(agent, Destination) for agent in from_cell.agents)
 
-                spawn_points = [(0, 0), (23, 0), (0, 24), (23, 24)]
+                spawn_points = [(0, 0), (35, 0), (0, 34), (35, 34)]
                 is_spawn_point = from_cell.coordinate in spawn_points
 
                 if is_spawn_point or from_has_destination or not from_has_road:
@@ -791,7 +791,7 @@ class Borrachito(Car):
 
     def move(self):
         """
-        Moves agent with alternate behavior.
+        Moves agent with alternate behavior - MODO BORRACHITO EXAGERADO.
         """
         if self.crashed:
             self.crash_timer += 1
@@ -836,6 +836,81 @@ class Borrachito(Car):
             self.path_index = 0
             self.stuck_counter = 0
 
+        # MODO BORRACHITO: 80% de probabilidad de movimiento errático diagonal
+        borrachito_mode = random.random() < 0.8
+
+        if borrachito_mode:
+            # Movimientos diagonales aleatorios en todas direcciones
+            current_x, current_y = self.cell.coordinate
+
+            # Todas las direcciones diagonales posibles + algunas ortogonales
+            diagonal_offsets = [
+                (1, 1),   # UpRight
+                (-1, 1),  # UpLeft
+                (1, -1),  # DownRight
+                (-1, -1), # DownLeft
+                (2, 1),   # Diagonal exagerado
+                (-2, 1),  # Diagonal exagerado
+                (1, 2),   # Diagonal exagerado
+                (-1, 2),  # Diagonal exagerado
+                (2, -1),  # Diagonal exagerado
+                (-2, -1), # Diagonal exagerado
+                (1, -2),  # Diagonal exagerado
+                (-1, -2), # Diagonal exagerado
+            ]
+
+            # Barajar para movimientos impredecibles
+            random.shuffle(diagonal_offsets)
+
+            moved = False
+            for dx, dy in diagonal_offsets:
+                target_x = current_x + dx
+                target_y = current_y + dy
+                target_cell = self.get_cell_at(target_x, target_y)
+
+                if target_cell:
+                    # Verificar si tiene camino (road)
+                    has_road = any(isinstance(agent, Road) for agent in target_cell.agents)
+                    has_obstacle = any(isinstance(agent, Obstacle) for agent in target_cell.agents)
+
+                    if has_road and not has_obstacle:
+                        # Intentar moverse, ignorando semáforos
+                        other_car = None
+                        for agent in target_cell.agents:
+                            if isinstance(agent, (Car, Borrachito)) and agent != self:
+                                other_car = agent
+                                break
+
+                        if other_car:
+                            # Mayor probabilidad de choque en modo borrachito
+                            crash_chance = random.random()
+                            if crash_chance < 0.5:  # 50% de probabilidad de choque
+                                self.crashed = True
+                                self.crash_timer = 0
+                                self.original_position = self.cell
+
+                                other_car.crashed = True
+                                other_car.crash_timer = 0
+                                other_car.original_position = other_car.cell
+                                moved = True
+                                break
+                            else:
+                                # Intenta otra dirección
+                                continue
+                        else:
+                            # Moverse a la celda diagonal
+                            self.move_to(target_cell)
+                            moved = True
+                            break
+
+            if moved:
+                # Resetear el path ocasionalmente para más caos
+                if random.random() < 0.4:
+                    self.path = None
+                self.stuck_counter = 0
+                return
+
+        # Si no se movió en modo borrachito, usar el comportamiento normal pero más agresivo
         next_cell = self.path[self.path_index + 1]
 
         current_x, current_y = self.cell.coordinate
@@ -871,7 +946,7 @@ class Borrachito(Car):
 
         if other_car:
             crash_chance = random.random()
-            if crash_chance < 0.3:
+            if crash_chance < 0.5:  # Mayor probabilidad de choque
                 self.crashed = True
                 self.crash_timer = 0
                 self.original_position = self.cell
