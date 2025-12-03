@@ -298,7 +298,7 @@ function setupObjects(scene, gl, programInfo) {
     pole.bufferInfo = stoplightTemplate.bufferInfo;
     pole.vao = stoplightTemplate.vao;
     pole.programInfo = colorProgramInfo;
-    pole.scale = { x: 0.2, y: 0.2, z: 0.2 };
+    pole.scale = { x: 0.2, y: 0.8, z: 0.2 };
     pole.color = [0.3, 0.3, 0.3, 1.0];
 
     const bulbOffset = { x: 0, y: 0.6, z: 0 };
@@ -312,7 +312,7 @@ function setupObjects(scene, gl, programInfo) {
     bulb.bufferInfo = baseCube.bufferInfo;
     bulb.vao = baseCube.vao;
     bulb.programInfo = colorProgramInfo;
-    bulb.scale = { x: 0.16, y: 0.16, z: 0.16 };
+    bulb.scale = { x: 0.16, y: 0., z: 0.16 };
     if (tl.state === "red") bulb.color = [1, 0, 0, 1];
     else if (tl.state === "green") bulb.color = [0, 1, 0, 1];
     else bulb.color = [0.2, 0.2, 0.2, 1];
@@ -326,7 +326,18 @@ function setupObjects(scene, gl, programInfo) {
 
 // ------------------- DRAW ONE OBJECT -------------------
 function drawObject(gl, programInfo, object, viewProjectionMatrix, fract) {
+  // Verificar si es un coche (está en el array agents) y aplicar offset en Y
+  const isCar = agents.some(agent => agent.id === object.id);
+  // Las carreteras están en Y=0, los coches deben estar justo arriba
+  const roadHeight = 0; // Altura de las carreteras
+  const carHeightOffset = 0; // Offset para posicionar los coches sobre las carreteras
+  
   let v3_tra = object.posArray;
+  if (isCar) {
+    // Los coches vienen con Y=1 del servidor, pero deben estar en Y=0.15 (arriba de la carretera)
+    v3_tra = [v3_tra[0], roadHeight + carHeightOffset, v3_tra[2]];
+  }
+  
   let v3_sca = object.scaArray;
 
   const scaMat = M4.scale(v3_sca);
