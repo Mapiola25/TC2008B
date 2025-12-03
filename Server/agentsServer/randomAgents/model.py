@@ -1,6 +1,6 @@
 from mesa import Model
 from mesa.discrete_space import OrthogonalMooreGrid
-from .agent import *
+from .agent import Car, Traffic_Light, Destination, Obstacle, Road, Borrachito, destinations
 import json
 import os
 
@@ -22,7 +22,7 @@ class CityModel(Model):
         # Esto evita que se acumulen destinos de modelos anteriores
         global destinations
         destinations.clear()
-        print("[MODEL] Lista de destinos limpiada al inicializar modelo")
+        print("[MODEL] Target list cleared")
 
         # Load the map dictionary. The dictionary maps the characters in the map file to the corresponding agent.
         base_path = os.path.dirname(__file__)
@@ -33,6 +33,7 @@ class CityModel(Model):
         self.current_step = 0
         self.cars_spawned = 0  # Contador de coches generados
         self.cars_arrived = 0  # Contador de coches que llegaron al destino
+        self.borrachito_mode = False  # Modo borrachito desactivado por defecto
 
         # Load the map file. The map file is a text file where each character represents an agent.
         with open(os.path.join(base_path, "city_files/2022_base.txt")) as baseFile:
@@ -96,7 +97,7 @@ class CityModel(Model):
         if not destinations:
             raise RuntimeError(f"Error crítico: El modelo se inicializó sin destinos. Revise el archivo de mapa.")
 
-        print(f"[MODEL] Modelo inicializado correctamente con {len(destinations)} destinos: {[d.coordinate for d in destinations]}")
+        print(f"[MODEL] Init OK: {len(destinations)} targets")
 
         # Verificar spawn points y sus Roads
         spawn_locations = [(0,0), (23, 0), (23, 24), (0, 24)]
@@ -104,21 +105,21 @@ class CityModel(Model):
             cell = self.grid[spawn_loc]
             road_agents = [agent for agent in cell.agents if isinstance(agent, Road)]
             if road_agents:
-                print(f"[MODEL] Spawn point {spawn_loc} tiene Road con dirección: {road_agents[0].direction}")
+                print(f"[MODEL] Point {spawn_loc} has path: {road_agents[0].direction}")
             else:
-                print(f"[MODEL] WARNING: Spawn point {spawn_loc} NO tiene Road!")
+                print(f"[MODEL] Point {spawn_loc} path missing")
 
     def step(self):
         """Advance the model by one step."""
         self.agents.shuffle_do("step")
         self.current_step += 1
 
-        # Mostrar estadísticas cada 20 steps
+        # Show stats every 20 steps
         if self.current_step % 20 == 0:
-            active_cars = sum(1 for agent in self.agents if isinstance(agent, Car))
-            print(f"\n[STATS Step {self.current_step}] Coches activos: {active_cars} | Spawneados: {self.cars_spawned} | Llegaron: {self.cars_arrived}")
+            active_cars = sum(1 for agent in self.agents if isinstance(agent, (Car, Borrachito)))
+            print(f"\n[STATS {self.current_step}] Active: {active_cars} | Total: {self.cars_spawned} | Done: {self.cars_arrived}")
             if self.cars_spawned > 0:
-                print(f"[STATS] Tasa de éxito: {(self.cars_arrived/self.cars_spawned*100):.1f}%\n")
+                print(f"[STATS] Rate: {(self.cars_arrived/self.cars_spawned*100):.1f}%\n")
 
 
         # Spawn new cars at specific locations (corners of the map)
@@ -126,24 +127,55 @@ class CityModel(Model):
 
         # Si el step coincide con el numero de n steps por spawn de coche
         if self.current_step % self.car_spawn_rate == 0:
-            # VALIDACIÓN: Solo spawnear si hay destinos disponibles
+            # Validate targets available
             if not destinations:
-                print(f"[WARNING] No se pueden spawnear coches: no hay destinos disponibles")
+                print(f"[WARN] Spawn blocked: no targets")
                 return
 
-            # Verificar CADA spawn location individualmente
-            for location in spawn_locations:
-                # Verificar si hay un coche en ESTA location específica
-                has_car_here = any(isinstance(agent, Car) for agent in self.grid[location].agents)
+            # Si el modo borrachito está activado, spawnear 1 Borrachito y 3 Cars normales
+            if self.borrachito_mode:
+                # Elegir una ubicación aleatoria para el Borrachito
+                import random
+                borrachito_location = random.choice(spawn_locations)
 
-                # Solo spawnear si NO hay un coche en esta location
-                if not has_car_here:
-                    try:
-                        cell = self.grid[location]
-                        agent = Car(self, cell)
-                        self.cars_spawned += 1
-                        print(f"[SPAWN] Car #{self.cars_spawned} spawned at {location} -> destination: {agent.destination.coordinate}")
-                    except Exception as e:
-                        print(f"[ERROR] Error spawning car at {location}: {e}")
-                else:
-                    print(f"[SPAWN] Skipping {location}: already has a car waiting")
+                # Iterar por todas las ubicaciones
+                for location in spawn_locations:
+                    # Verificar si hay un coche en ESTA location específica
+                    has_car_here = any(isinstance(agent, (Car, Borrachito)) for agent in self.grid[location].agents)
+
+                    # Solo spawnear si NO hay un coche en esta location
+                    if not has_car_here:
+                        try:
+                            cell = self.grid[location]
+
+                            # Spawn special or normal agent
+                            if location == borrachito_location:
+                                agent = Borrachito(self, cell)
+                                self.cars_spawned += 1
+                                print(f"[SPAWN] Special unit #{self.cars_spawned} at {location}")
+                            else:
+                                # Spawn normal unit at other locations
+                                agent = Car(self, cell)
+                                self.cars_spawned += 1
+                                print(f"[SPAWN] Unit #{self.cars_spawned} at {location}")
+                        except Exception as e:
+                            print(f"[ERR] Spawn failed at {location}: {e}")
+                    else:
+                        print(f"[SPAWN] Skip {location}: occupied")
+            else:
+                # Modo normal: spawnear coches en todas las ubicaciones
+                for location in spawn_locations:
+                    # Verificar si hay un coche en ESTA location específica
+                    has_car_here = any(isinstance(agent, (Car, Borrachito)) for agent in self.grid[location].agents)
+
+                    # Solo spawnear si NO hay un coche en esta location
+                    if not has_car_here:
+                        try:
+                            cell = self.grid[location]
+                            agent = Car(self, cell)
+                            self.cars_spawned += 1
+                            print(f"[SPAWN] Unit #{self.cars_spawned} at {location}")
+                        except Exception as e:
+                            print(f"[ERR] Spawn failed at {location}: {e}")
+                    else:
+                        print(f"[SPAWN] Skip {location}: occupied")

@@ -75,9 +75,11 @@ async function getAgents() {
                 if(current_agent != undefined){
                     current_agent.oldPosArray = current_agent.posArray;
                     current_agent.position = {x: agent.x, y: agent.y, z: agent.z};
+                    current_agent.type = agent.type || "Car";  // Actualizar tipo
                 } else {
                     const newAgent = new Object3D(agent.id, [agent.x, agent.y, agent.z]);
                     newAgent['oldPosArray'] = newAgent.posArray;
+                    newAgent.type = agent.type || "Car";  // Guardar tipo de agente
                     agents.push(newAgent);
                 }
             }

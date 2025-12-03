@@ -39,14 +39,14 @@ def initModel():
     # Reset current step
     currentStep = 0
 
-    print(f"[SERVER] Model parameters: N={number_agents}")
-    print(f"[SERVER] Resetting model (currentStep={currentStep})...")
+    print(f"[SERVER] Init params: N={number_agents}")
+    print(f"[SERVER] State reset: step={currentStep}")
 
     # Create the model using the parameters sent by the application
     randomModel = CityModel(N=number_agents)
 
-    print(f"[SERVER] Model created successfully!")
-    print(f"[SERVER] Ready to start simulation")
+    print(f"[SERVER] Init complete")
+    print(f"[SERVER] System ready")
 
     # Return a message to saying that the model was created successfully
     return jsonify({"message": f"Parameters received, model initiated.\nNumber of agents: {number_agents}"})
@@ -63,8 +63,10 @@ def getAgents():
         # Note that the positions are sent as a list of dictionaries, where each dictionary has the id and position of an agent.
         # The y coordinate is set to 1, since the agents are in a 3D world. The z coordinate corresponds to the row (y coordinate) of the grid in mesa.
         try:
+            from randomAgents.agent import Borrachito
+
             agentCells = randomModel.grid.all_cells.select(
-                lambda cell: any(isinstance(obj, Car) for obj in cell.agents)
+                lambda cell: any(isinstance(obj, (Car, Borrachito)) for obj in cell.agents)
             ).cells
             # print(f"CELLS: {agentCells}")
 
@@ -72,12 +74,18 @@ def getAgents():
                 (cell.coordinate, agent)
                 for cell in agentCells
                 for agent in cell.agents
-                if isinstance(agent, Car)
+                if isinstance(agent, (Car, Borrachito))
             ]
             # print(f"AGENTS: {agents}")
 
             agentPositions = [
-                {"id": str(a.unique_id), "x": coordinate[0], "y":1, "z":coordinate[1]}
+                {
+                    "id": str(a.unique_id),
+                    "x": coordinate[0],
+                    "y":1,
+                    "z":coordinate[1],
+                    "type": "Borrachito" if isinstance(a, Borrachito) else "Car"
+                }
                 for (coordinate, a) in agents
             ]
             # print(f"AGENT POSITIONS: {agentPositions}")
@@ -252,13 +260,33 @@ def setCarSpawnRate():
         # Guardamos el valor en el modelo MESA
         randomModel.car_spawn_rate = new_rate
 
-        print(f"[SERVER] spawnRate actualizado a {new_rate}")
+        print(f"[SERVER] Rate adjusted: {new_rate}")
 
         return jsonify({"message": f"spawnRate actualizado a {new_rate}"}), 200
 
     except Exception as e:
         print("ERROR en setCarSpawnRate:", e)
         return jsonify({"error": "No se pudo actualizar spawnRate"}), 500
+
+@app.route('/setBorrachitoMode', methods=['POST'])
+@cross_origin()
+def setBorrachitoMode():
+    global randomModel
+
+    try:
+        data = request.json
+        borrachito_on = bool(data.get("borrachitoOn", False))
+
+        # Guardamos el valor en el modelo MESA
+        randomModel.borrachito_mode = borrachito_on
+
+        print(f"[SERVER] Mode updated: {borrachito_on}")
+
+        return jsonify({"message": f"Modo Borrachito {'activado' if borrachito_on else 'desactivado'}"}), 200
+
+    except Exception as e:
+        print("ERROR en setBorrachitoMode:", e)
+        return jsonify({"error": "No se pudo actualizar modo borrachito"}), 500
 
 
 if __name__=='__main__':

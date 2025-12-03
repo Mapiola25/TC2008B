@@ -205,7 +205,17 @@ function setupScene() {
 
 // ------------------- CAR SETUP -------------------
 function setupCarAgent(agent) {
-  const index = Math.floor(Math.random() * carBodyTemplates.length);
+  // Si es Borrachito, usar solo raceBody (índice 2)
+  // Si es Car normal, elegir aleatoriamente entre sedan, sedanSport y hatchbackSport (índices 0, 1, 3)
+  let index;
+  if (agent.type === "Borrachito") {
+    index = 2; // raceBody está en el índice 2 de carBodyTemplates
+  } else {
+    // Excluir raceBody (índice 2) para coches normales
+    const normalCarIndices = [0, 1, 3]; // sedan, sedanSport, hatchbackSport
+    index = normalCarIndices[Math.floor(Math.random() * normalCarIndices.length)];
+  }
+
   const bodyTemplate = carBodyTemplates[index];
 
   agent.arrays = bodyTemplate.arrays;
@@ -732,7 +742,7 @@ async function drawScene() {
     if (removedIds.length > 0) {
       // Eliminar objetos de la escena que ya no están en agents
       scene.objects = scene.objects.filter(obj => !removedIds.includes(obj.id));
-      console.log(`Removed ${removedIds.length} car(s) from scene`);
+      console.log(`Removed ${removedIds.length} unit(s)`);
     }
   }
 
@@ -772,16 +782,16 @@ function setupUI() {
         isPaused = false;
         elapsed = 0;
         then = Date.now();
-        console.log("Simulación iniciada");
+        console.log("Init");
       }
     },
     togglePause: () => {
       if (!simulationStarted) {
-        console.log("Primero debes iniciar la simulación");
+        console.log("Not started yet");
         return;
       }
       isPaused = !isPaused;
-      console.log(isPaused ? "Simulación pausada" : "Simulación reanudada");
+      console.log(isPaused ? "Paused" : "Resumed");
     },
     resetSimulation: () => {
       fetch("http://localhost:8585/init", {
@@ -791,7 +801,7 @@ function setupUI() {
       })
         .then((r) => r.json())
         .then((msg) => {
-          console.log("Simulación reiniciada:", msg);
+          console.log("Reset:", msg);
           window.location.reload();
         })
         .catch((err) => console.error(err));
@@ -832,7 +842,16 @@ function setupUI() {
   logicFolder
     .add(settings, "borrachitoOn")
     .name("Modo Borrachito")
-    .onChange((value) => {});
+    .onChange((value) => {
+      fetch("http://localhost:8585/setBorrachitoMode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ borrachitoOn: value }),
+      })
+        .then((r) => r.json())
+        .then((msg) => console.log("Mode:", msg))
+        .catch((err) => console.error(err));
+    });
 
   logicFolder
     .add(settings, "carSpawnRate", 1, 50, 1)
@@ -844,7 +863,7 @@ function setupUI() {
         body: JSON.stringify({ rate: value }),
       })
         .then((r) => r.json())
-        .then((msg) => console.log("Spawn rate actualizado:", msg))
+        .then((msg) => console.log("Rate updated:", msg))
         .catch((err) => console.error(err));
     });
 }
