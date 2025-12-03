@@ -67,6 +67,7 @@ import {
   roads,
   tlights,
   getTlights,
+  currentStep,
 } from "../libs/api_connection.js";
 
 // --------- SHADERS ----------
@@ -99,6 +100,7 @@ let then = 0;
 let baseCube = undefined;
 let checkpointTemplate = undefined;
 let globalLightIntensity = 0.5;
+let isPaused = false;
 
 // ------------------- MAIN -------------------
 async function main() {
@@ -284,7 +286,7 @@ function setupObjects(scene, gl, programInfo) {
     agent.vao = template.vao;
     agent.programInfo = textureProgramInfo;
     agent.texture = buildingTexture;
-    agent.scale = { x: 0.5, y: 0.5, z: 0.5 };
+    agent.scale = { x: 0.5, y: 1.5, z: 0.5 };
     agent.color = [1, 1, 1, 1.0];
     scene.addObject(agent);
 
@@ -453,21 +455,6 @@ function drawObject(gl, programInfo, object, viewProjectionMatrix, fract, timeMs
       }
     });
     
-    // Agregar coches como fuentes de luz blanca
-    agents.forEach(car => {
-      const carPos = car.lerpPos || car.posArray;
-      const dx = carPos[0] - objPos[0];
-      const dz = carPos[2] - objPos[2];
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist <= maxRange && dist > 0.1) { // No iluminarse a sí mismo
-        allLights.push({
-          position: [carPos[0], 0.1, carPos[2]], // Luz por debajo del coche
-          distance: dist,
-          type: 'car'
-        });
-      }
-    });
-    
     // Ordenar por distancia y tomar hasta 10 luces cercanas
     allLights.sort((a, b) => a.distance - b.distance);
     
@@ -482,10 +469,6 @@ function drawObject(gl, programInfo, object, viewProjectionMatrix, fract, timeMs
           // Luz azul fosforescente para checkpoints
           diffuseColors.push(0.1, 0.8, 1.2, 1.0);
           specularColors.push(0.15, 1.0, 1.5, 1.0);
-        } else if (light.type === 'car') {
-          // Luz blanca para coches
-          diffuseColors.push(0.6, 0.6, 0.6, 1.0);
-          specularColors.push(0.8, 0.8, 0.8, 1.0);
         } else {
           // Color según estado del semáforo
           if (light.state === "red") {
@@ -564,6 +547,12 @@ async function drawScene() {
 
   scene.camera.checkKeys();
   const viewProjectionMatrix = setupViewProjection(gl);
+
+  // Actualizar contadores
+  if (window.guiSettings) {
+    window.guiSettings.carsInMap = agents.length;
+    window.guiSettings.currentStep = currentStep;
+  }
 
   // ----- Coches -----
   for (const agent of agents) {
@@ -644,8 +633,12 @@ async function drawScene() {
     drawObject(gl, programInfo, object, viewProjectionMatrix, fract, now);
   }
 
-  if (elapsed >= duration) {
+  if (elapsed >= duration && !isPaused) {
     elapsed = 0;
+    
+    // Guardar IDs antes de actualizar
+    const agentIdsBefore = new Set(agents.map(a => a.id));
+    
     for (const agent of agents) {
       if (agent.oldPos) {
         agent.oldPos = [...agent.posArray];
@@ -655,6 +648,16 @@ async function drawScene() {
       }
     }
     await update();
+    
+    // Detectar coches eliminados y quitarlos de la escena
+    const agentIdsAfter = new Set(agents.map(a => a.id));
+    const removedIds = [...agentIdsBefore].filter(id => !agentIdsAfter.has(id));
+    
+    if (removedIds.length > 0) {
+      // Eliminar objetos de la escena que ya no están en agents
+      scene.objects = scene.objects.filter(obj => !removedIds.includes(obj.id));
+      console.log(`Removed ${removedIds.length} car(s) from scene`);
+    }
   }
 
   requestAnimationFrame(drawScene);
@@ -685,7 +688,51 @@ function setupUI() {
   const settings = {
     carSpawnRate: 5,
     borrachitoOn: false,
+    carsInMap: 0,
+    currentStep: 0,
+    togglePause: () => {
+      isPaused = !isPaused;
+      console.log(isPaused ? "Simulación pausada" : "Simulación reanudada");
+    },
+    resetSimulation: () => {
+      fetch("http://localhost:8585/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ NAgents: 20, width: 28, height: 28 })
+      })
+        .then((r) => r.json())
+        .then((msg) => {
+          console.log("Simulación reiniciada:", msg);
+          window.location.reload();
+        })
+        .catch((err) => console.error(err));
+    }
   };
+
+  // Hacer settings accesible globalmente para actualizar contadores
+  window.guiSettings = settings;
+
+  const dataFolder = gui.addFolder("Datos");
+  
+  dataFolder
+    .add(settings, "currentStep")
+    .name("Step actual")
+    .listen();
+  
+  dataFolder
+    .add(settings, "carsInMap")
+    .name("Coches en el mapa")
+    .listen();
+
+  const simulationFolder = gui.addFolder("Simulación");
+
+  simulationFolder
+    .add(settings, "togglePause")
+    .name("Pausar/Reanudar");
+
+  simulationFolder
+    .add(settings, "resetSimulation")
+    .name("Reset Simulación");
 
   const logicFolder = gui.addFolder("Tráfico");
 

@@ -19,6 +19,7 @@ const obstacles = [];
 const roads = [];
 const tlights= [];
 const destinations = [];
+let currentStep = 0;
 
 // Define the data object
 const initData = {
@@ -70,6 +71,17 @@ async function getAgents() {
 
             // Log the agent positions
             //console.log("getAgents positions: ", result.positions)
+
+            // Crear un set de IDs actuales del servidor
+            const serverAgentIds = new Set(result.positions.map(a => a.id));
+
+            // Eliminar agentes que ya no están en el servidor (llegaron a su destino)
+            for (let i = agents.length - 1; i >= 0; i--) {
+                if (!serverAgentIds.has(agents[i].id)) {
+                    console.log("Car removed (arrived at destination):", agents[i].id);
+                    agents.splice(i, 1);
+                }
+            }
 
             // Update existing agents and add new ones
             for (const agent of result.positions) {
@@ -216,6 +228,9 @@ async function update() {
 
         // Check if the response was successful
         if (response.ok) {
+            let result = await response.json();
+            currentStep = result.currentStep || 0;
+            
             // Retrieve the updated agent positions
             await getAgents();
             await getTlights();
@@ -237,4 +252,4 @@ async function update() {
     }
 }
 
-export { agents, obstacles, roads, destinations, initAgentsModel, update, getAgents, getObstacles, getRoads, tlights, getTlights, getDestinations };
+export { agents, obstacles, roads, destinations, initAgentsModel, update, getAgents, getObstacles, getRoads, tlights, getTlights, getDestinations, currentStep };
