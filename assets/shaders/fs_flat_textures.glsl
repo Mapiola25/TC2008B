@@ -9,10 +9,12 @@ Used for skyboxes.
 in vec2 v_texCoord;
 
 uniform sampler2D u_texture;
+uniform float u_lightIntensity;
 
 out vec4 outColor;
 
 void main() {
     // Use the color of the texture on the object
-    outColor = texture(u_texture, v_texCoord);
+    vec4 texColor = texture(u_texture, v_texCoord);
+    outColor = vec4(texColor.rgb * u_lightIntensity, texColor.a);
 }

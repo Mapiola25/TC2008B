@@ -3,7 +3,7 @@ in vec4 a_position;
 in vec3 a_normal;
 in vec2 a_texCoord;
 
-const int NUM_LIGHTS = 3;
+const int NUM_LIGHTS = 10;
 
 uniform vec3 u_lightWorldPosition[NUM_LIGHTS];
 uniform vec3 u_viewWorldPosition;
@@ -22,15 +22,15 @@ void main() {
     // Pass along the texture coordinates
     v_texCoord = a_texCoord;
 
-    v_position = u_worldViewProjection * a_position;
     // Transform the position of the vertices
-    gl_Position = v_position;
+    gl_Position = u_worldViewProjection * a_position;
 
     //v_normal = u_world * vec4(a_normal.xyz, 0);
     v_normal = mat3(u_worldInverseTransform) * a_normal;
 
     // Get world position of the surface
     vec3 surfaceWorldPosition = (u_world * a_position).xyz;
+    v_position = vec4(surfaceWorldPosition, 1.0);
 
     // Direction from the surface to the lights
     for (int i=0; i<NUM_LIGHTS; i++) {
