@@ -431,4 +431,111 @@ function cubeTextured(size) {
     return arrays;
 }
 
-export { shapeF, diamond, cubeFaceColors, cubeVertexColors, cubeTextured, car2D };
+// Create a large cube for skybox (inverted to see from inside)
+// Texture layout is a cross format:
+//       [Top]
+// [Left][Front][Right][Back]
+//       [Bottom]
+function cubeSkybox(size) {
+    // Texture coordinates for cross layout (each face is 1/4 width, 1/3 height)
+    const w = 1/4;  // width of each face
+    const h = 1/3;  // height of each face
+
+    let arrays = {
+        a_position: {
+            numComponents: 3,
+            data: [
+                // Front Face (inverted winding order) - center of cross
+                -1.0, -1.0,  1.0,
+                -1.0,  1.0,  1.0,
+                1.0,  1.0,  1.0,
+                1.0, -1.0,  1.0,
+
+                // Back face (inverted winding order) - rightmost of middle row
+                -1.0, -1.0, -1.0,
+                1.0, -1.0, -1.0,
+                1.0,  1.0, -1.0,
+                -1.0,  1.0, -1.0,
+
+                // Top face (inverted winding order) - top of cross
+                -1.0,  1.0, -1.0,
+                1.0,  1.0, -1.0,
+                1.0,  1.0,  1.0,
+                -1.0,  1.0,  1.0,
+
+                // Bottom face (inverted winding order) - bottom of cross
+                -1.0, -1.0, -1.0,
+                -1.0, -1.0,  1.0,
+                1.0, -1.0,  1.0,
+                1.0, -1.0, -1.0,
+
+                // Right face (inverted winding order) - right of center
+                1.0, -1.0, -1.0,
+                1.0, -1.0,  1.0,
+                1.0,  1.0,  1.0,
+                1.0,  1.0, -1.0,
+
+                // Left face (inverted winding order) - left of center
+                -1.0, -1.0, -1.0,
+                -1.0,  1.0, -1.0,
+                -1.0,  1.0,  1.0,
+                -1.0, -1.0,  1.0
+            ].map(e => size * e)
+        },
+        a_texCoord: {
+            numComponents: 2,
+            data: [
+                // Front Face - column 1, row 1 (center)
+                w*1, h*2,    // bottom-left
+                w*1, h*1,    // top-left
+                w*2, h*1,    // top-right
+                w*2, h*2,    // bottom-right
+
+                // Back face - column 3, row 1 (rightmost)
+                w*3, h*2,    // bottom-left
+                w*4, h*2,    // bottom-right
+                w*4, h*1,    // top-right
+                w*3, h*1,    // top-left
+
+                // Top face - column 1, row 0 (top)
+                w*1, h*1,    // bottom-left
+                w*2, h*1,    // bottom-right
+                w*2, h*0,    // top-right
+                w*1, h*0,    // top-left
+
+                // Bottom face - column 1, row 2 (bottom)
+                w*1, h*2,    // top-left
+                w*1, h*3,    // bottom-left
+                w*2, h*3,    // bottom-right
+                w*2, h*2,    // top-right
+
+                // Right face - column 2, row 1 (right of center)
+                w*2, h*2,    // bottom-left
+                w*3, h*2,    // bottom-right
+                w*3, h*1,    // top-right
+                w*2, h*1,    // top-left
+
+                // Left face - column 0, row 1 (left of center)
+                w*0, h*2,    // bottom-left
+                w*0, h*1,    // top-left
+                w*1, h*1,    // top-right
+                w*1, h*2,    // bottom-right
+            ]
+        },
+        indices: {
+            numComponents: 3,
+            data: [
+                0, 1, 2,      0, 2, 3,    // Front face
+                4, 5, 6,      4, 6, 7,    // Back face
+                8, 9, 10,     8, 10, 11,  // Top face
+                12, 13, 14,   12, 14, 15, // Bottom face
+                16, 17, 18,   16, 18, 19, // Right face
+                20, 21, 22,   20, 22, 23  // Left face
+            ]
+        }
+    };
+
+    return arrays;
+}
+
+export { shapeF, diamond, cubeFaceColors, cubeVertexColors, cubeTextured, cubeSkybox, car2D };

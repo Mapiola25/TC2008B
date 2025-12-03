@@ -425,7 +425,7 @@ class Car(CellAgent):
             self.model.cars_arrived += 1
 
             # IMPORTANTE: Primero sacar el coche de la celda
-            # Mesa no lo hace automáticamente cuando removes el agente
+
             if self.cell is not None:
                 self.cell.remove_agent(self)
 
@@ -543,6 +543,7 @@ class Car(CellAgent):
 
         # Moverse a la siguiente celda
         self.move_to(next_cell)
+        
         self.path_index += 1
         self.stuck_counter = 0  # Resetear contador al moverse exitosamente
 
