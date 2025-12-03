@@ -109,6 +109,7 @@ let baseCube = undefined;
 let checkpointTemplate = undefined;
 let globalLightIntensity = 0.5;
 let isPaused = false;
+let simulationStarted = false;
 
 // ------------------- MAIN -------------------
 async function main() {
@@ -179,6 +180,8 @@ async function main() {
   setupScene();
   setupObjects(scene, gl, colorProgramInfo);
   setupUI();
+
+  // Iniciar el loop de renderizado (sin actualizar la simulación hasta que se presione el botón)
   drawScene();
 }
 
@@ -705,12 +708,13 @@ async function drawScene() {
     drawObject(gl, programInfo, object, viewProjectionMatrix, fract, now);
   }
 
-  if (elapsed >= duration && !isPaused) {
+  // Solo actualizar la simulación si ya se inició y no está pausada
+  if (elapsed >= duration && !isPaused && simulationStarted) {
     elapsed = 0;
-    
+
     // Guardar IDs antes de actualizar
     const agentIdsBefore = new Set(agents.map(a => a.id));
-    
+
     for (const agent of agents) {
       if (agent.oldPos) {
         agent.oldPos = [...agent.posArray];
@@ -720,11 +724,11 @@ async function drawScene() {
       }
     }
     await update();
-    
+
     // Detectar coches eliminados y quitarlos de la escena
     const agentIdsAfter = new Set(agents.map(a => a.id));
     const removedIds = [...agentIdsBefore].filter(id => !agentIdsAfter.has(id));
-    
+
     if (removedIds.length > 0) {
       // Eliminar objetos de la escena que ya no están en agents
       scene.objects = scene.objects.filter(obj => !removedIds.includes(obj.id));
@@ -762,7 +766,20 @@ function setupUI() {
     borrachitoOn: false,
     carsInMap: 0,
     currentStep: 0,
+    startSimulation: () => {
+      if (!simulationStarted) {
+        simulationStarted = true;
+        isPaused = false;
+        elapsed = 0;
+        then = Date.now();
+        console.log("Simulación iniciada");
+      }
+    },
     togglePause: () => {
+      if (!simulationStarted) {
+        console.log("Primero debes iniciar la simulación");
+        return;
+      }
       isPaused = !isPaused;
       console.log(isPaused ? "Simulación pausada" : "Simulación reanudada");
     },
@@ -797,6 +814,10 @@ function setupUI() {
     .listen();
 
   const simulationFolder = gui.addFolder("Simulación");
+
+  simulationFolder
+    .add(settings, "startSimulation")
+    .name("Iniciar Simulación");
 
   simulationFolder
     .add(settings, "togglePause")
