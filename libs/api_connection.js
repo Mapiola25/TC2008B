@@ -76,10 +76,14 @@ async function getAgents() {
                     current_agent.oldPosArray = current_agent.posArray;
                     current_agent.position = {x: agent.x, y: agent.y, z: agent.z};
                     current_agent.type = agent.type || "Car";  // Actualizar tipo
+                    current_agent.crashed = agent.crashed || false;  // Estado de choque
+                    current_agent.crash_timer = agent.crash_timer || 0;  // Temporizador de choque
                 } else {
                     const newAgent = new Object3D(agent.id, [agent.x, agent.y, agent.z]);
                     newAgent['oldPosArray'] = newAgent.posArray;
                     newAgent.type = agent.type || "Car";  // Guardar tipo de agente
+                    newAgent.crashed = agent.crashed || false;  // Estado de choque
+                    newAgent.crash_timer = agent.crash_timer || 0;  // Temporizador de choque
                     agents.push(newAgent);
                 }
             }

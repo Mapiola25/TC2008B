@@ -3,7 +3,7 @@ from mesa.discrete_space import OrthogonalMooreGrid
 from .agent import Car, Traffic_Light, Destination, Obstacle, Road, Borrachito, destinations
 import json
 import os
-
+import random
 
 class CityModel(Model):
     """
@@ -18,22 +18,19 @@ class CityModel(Model):
 
         super().__init__(seed=seed)
 
-        # Reset global state
         global destinations
         destinations.clear()
 
-        # Load the map dictionary. The dictionary maps the characters in the map file to the corresponding agent.
         base_path = os.path.dirname(__file__)
         dataDictionary = json.load(open(os.path.join(base_path, "city_files/mapDictionary.json")))
 
         self.num_agents = N
         self.car_spawn_rate = spawn_of_cars
         self.current_step = 0
-        self.cars_spawned = 0  # Contador de coches generados
-        self.cars_arrived = 0  # Contador de coches que llegaron al destino
-        self.borrachito_mode = False  # Modo borrachito desactivado por defecto
+        self.cars_spawned = 0
+        self.cars_arrived = 0
+        self.borrachito_mode = False
 
-        # Load the map file. The map file is a text file where each character represents an agent.
         with open(os.path.join(base_path, "city_files/2025_base.txt")) as baseFile:
             lines = baseFile.readlines()
             self.width = len(lines[0])
@@ -42,8 +39,6 @@ class CityModel(Model):
             self.grid = OrthogonalMooreGrid(
                 [self.width, self.height], capacity=100, torus=False
             )
-
-            # Goes through each character in the map file and creates the corresponding agent.
 
             for r, row in enumerate(lines):
                 for c, col in enumerate(row):
@@ -54,7 +49,6 @@ class CityModel(Model):
                         agent = Road(self, cell, dataDictionary[col])
 
                     elif col in ["S", "s"]:
-                        # Check adjacent cells
                         direction = "Left"
 
                         if r > 0 and lines[r-1][c] in ["v", "^", ">", "<"]:
@@ -87,7 +81,6 @@ class CityModel(Model):
 
         self.running = True
 
-        # Validate initialization
         if not destinations:
             raise RuntimeError("Initialization failed: missing required data")
 
@@ -120,7 +113,6 @@ class CityModel(Model):
         """
         x, y = from_cell.coordinate
 
-        # Calculate offset
         if direction == "Up":
             y += distance
         elif direction == "Down":
@@ -165,14 +157,12 @@ class CityModel(Model):
             if not next_cell:
                 break
 
-            # Contar coches en esta celda
             car_count = sum(1 for agent in next_cell.agents if isinstance(agent, (Car, Borrachito)))
             congestion += car_count
 
-            # Penalizar semáforos en rojo
             for agent in next_cell.agents:
                 if isinstance(agent, Traffic_Light) and not agent.state:
-                    congestion += 2  # Semáforo rojo cuenta como 2 coches
+                    congestion += 2
 
         return congestion
 
@@ -189,36 +179,29 @@ class CityModel(Model):
         x, y = spawn_location
         valid_cells = []
 
-        # Celdas adyacentes (ortogonales y diagonales)
         neighbors = [
-            (x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1),  # Ortogonales
-            (x + 1, y + 1), (x - 1, y + 1), (x + 1, y - 1), (x - 1, y - 1)  # Diagonales
+            (x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1),
+            (x + 1, y + 1), (x - 1, y + 1), (x + 1, y - 1), (x - 1, y - 1)
         ]
 
-        # Incluir también el spawn point mismo
         neighbors.insert(0, spawn_location)
 
         for nx, ny in neighbors:
-            # Verificar que esté dentro de los límites
             if 0 <= nx < self.width and 0 <= ny < self.height:
                 cell = self.grid[(nx, ny)]
 
-                # Verificar que tenga Road
                 has_road = any(isinstance(agent, Road) for agent in cell.agents)
                 if not has_road:
                     continue
 
-                # Verificar que NO tenga obstáculos
                 has_obstacle = any(isinstance(agent, Obstacle) for agent in cell.agents)
                 if has_obstacle:
                     continue
 
-                # Verificar que NO tenga coches
                 has_car = any(isinstance(agent, (Car, Borrachito)) for agent in cell.agents)
                 if has_car:
                     continue
 
-                # Obtener la dirección del Road para calcular congestión
                 road_agent = None
                 for agent in cell.agents:
                     if isinstance(agent, Road):
@@ -228,14 +211,12 @@ class CityModel(Model):
                 if road_agent:
                     valid_cells.append((cell, road_agent.direction))
 
-        # Ordenar por congestión (menor congestión primero)
         if valid_cells:
             cells_with_congestion = []
             for cell, direction in valid_cells:
                 congestion = self.calculate_lane_congestion(cell, direction, lookahead=8)
                 cells_with_congestion.append((cell, congestion))
 
-            # Ordenar por congestión
             cells_with_congestion.sort(key=lambda x: x[1])
             return [cell for cell, _ in cells_with_congestion]
 
@@ -246,47 +227,30 @@ class CityModel(Model):
         self.agents.shuffle_do("step")
         self.current_step += 1
 
-
-        # Process spawn logic - Todas las 4 esquinas del mapa
         spawn_locations = [(0, 0), (35, 0), (0, 34), (35, 34)]
 
-        # Check spawn timing
         if self.current_step % self.car_spawn_rate == 0:
             if not destinations:
                 return
 
-            # Special mode enabled
-            if self.borrachito_mode:
-                import random
+            spawn_borrachito = self.borrachito_mode and random.random() < 0.25
+
+            borrachito_location = None
+            if spawn_borrachito:
                 borrachito_location = random.choice(spawn_locations)
 
-                for location in spawn_locations:
-                    # Obtener todas las celdas válidas alrededor del spawn point
-                    valid_cells = self.get_valid_spawn_cells(location)
+            for location in spawn_locations:
+                valid_cells = self.get_valid_spawn_cells(location)
 
-                    if valid_cells:
-                        try:
-                            # Usar la celda menos congestionada
-                            cell = valid_cells[0]
+                if valid_cells:
+                    try:
+                        cell = valid_cells[0]
 
-                            if location == borrachito_location:
-                                agent = Borrachito(self, cell)
-                                self.cars_spawned += 1
-                            else:
-                                agent = Car(self, cell)
-                                self.cars_spawned += 1
-                        except:
-                            pass
-            else:
-                for location in spawn_locations:
-                    # Obtener todas las celdas válidas alrededor del spawn point
-                    valid_cells = self.get_valid_spawn_cells(location)
-
-                    if valid_cells:
-                        try:
-                            # Usar la celda menos congestionada
-                            cell = valid_cells[0]
+                        if spawn_borrachito and location == borrachito_location:
+                            agent = Borrachito(self, cell)
+                            self.cars_spawned += 1
+                        else:
                             agent = Car(self, cell)
                             self.cars_spawned += 1
-                        except:
-                            pass
+                    except:
+                        pass

@@ -536,22 +536,54 @@ function drawObject(
     object.position.y = object.groundY + bobOffset;
   }
 
+  // ========== EFECTOS DE CHOQUE ========== variables a consdieredsadfr
+  let crashShakeX = 0;
+  let crashShakeZ = 0;
+  let crashRotX = 0;
+  let crashRotZ = 0;
+  let crashScaleMultiplier = 1.0;
+  let isCrashed = false;
+
+  if (isCar && object.crashed) {
+    isCrashed = true;
+    const t = timeMs * 0.001;
+    const intensity = Math.max(0, 1 - (object.crash_timer / 10)); // Disminuye con el tiempo para continuar con ritmo anterior de coches hacia su ruta
+
+    // Vibración/shake rápido
+    crashShakeX = Math.sin(t * 20) * 0.08 * intensity;
+    crashShakeZ = Math.cos(t * 25) * 0.08 * intensity;
+
+    // Inclinación del coche (como si estuviera dañado)
+    crashRotX = Math.sin(t * 3) * 0.15 * intensity;
+    crashRotZ = Math.cos(t * 2.5) * 0.12 * intensity;
+
+    // Escala pulsante (como si estuviera "rebotando")
+    crashScaleMultiplier = 1.0 + Math.sin(t * 8) * 0.05 * intensity;
+  }
+  // =========================================
+
   let v3_tra = object.posArray;
   if (isCar) {
     const carPos = object.lerpPos || object.posArray;
-    v3_tra = [carPos[0], roadHeight + carHeightOffset, carPos[2]];
+    v3_tra = [
+      carPos[0] + crashShakeX,
+      roadHeight + carHeightOffset,
+      carPos[2] + crashShakeZ
+    ];
   }
 
-  let v3_sca = object.scaArray;
+  let v3_sca = object.scaArray.map(s => s * crashScaleMultiplier);
 
   const scaMat = M4.scale(v3_sca);
-  const rotXMat = M4.rotationX(object.rotRad.x);
+  const rotXMat = M4.rotationX(object.rotRad.x + crashRotX);
 
-  const rotY =
-    isCar && object.lerpRot !== undefined ? object.lerpRot : object.rotRad.y;
+  const rotY = isCar && object.lerpRot !== undefined
+    ? object.lerpRot
+    : object.rotRad.y;
   const rotYMat = M4.rotationY(rotY);
 
-  const rotZMat = M4.rotationZ(object.rotRad.z);
+  const rotZMat = M4.rotationZ(object.rotRad.z + crashRotZ);
+
   const traMat = M4.translation(v3_tra);
 
   let transforms = M4.identity();
@@ -672,6 +704,27 @@ function drawObject(
       }
     }
 
+    
+    // Efecto de color para coches chocados
+    let ambientLight;
+    if (isCrashed) {
+      const t = timeMs * 0.001;
+      const flash = Math.abs(Math.sin(t * 6)); // Flash rápido
+      const intensity = Math.max(0, 1 - (object.crash_timer / 10));
+      const redBoost = flash * 0.6 * intensity;
+      const orangeGreen = flash * 0.3 * intensity;
+
+      ambientLight = [
+        globalLightIntensity * 0.5 + redBoost,
+        globalLightIntensity * 0.5 + orangeGreen * 0.5,
+        globalLightIntensity * 0.5,
+        1
+      ];
+    } else {
+      ambientLight = [globalLightIntensity * 0.5, globalLightIntensity * 0.5, globalLightIntensity * 0.5, 1];
+    }
+
+
     objectUniforms = {
       u_worldViewProjection: wvpMat,
       u_world: transforms,
@@ -679,12 +732,7 @@ function drawObject(
       u_lightWorldPosition: lightPositions,
       u_viewWorldPosition: cameraPos,
       u_shininess: object.shininess || 50,
-      u_ambientLight: [
-        globalLightIntensity * 0.5,
-        globalLightIntensity * 0.5,
-        globalLightIntensity * 0.5,
-        1,
-      ],
+      u_ambientLight: ambientLight,
       u_diffuseLight: diffuseColors,
       u_specularLight: specularColors,
       u_constant: 1.0,
@@ -894,7 +942,7 @@ async function drawScene() {
         const scaledY = local[1] * scale.y;
         const scaledZ = local[2] * scale.z;
 
-        // Aplicar rotación correcta alrededor del eje Y (antihoraria desde arriba)
+        // Aplicar rotación correcta alrededor del eje Y (antihoraria desde arriba) correción deJP a Juan de DIos
         const offsetX = scaledX * cosY + scaledZ * sinY;
         const offsetZ = -scaledX * sinY + scaledZ * cosY;
 
