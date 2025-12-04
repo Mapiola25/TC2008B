@@ -285,8 +285,23 @@ class Car(CellAgent):
 
                 base_cost = 1
 
+                # Spawning inteligente: evaluar congestión en el primer movimiento
+                if is_first_move and current_cell.coordinate == start.coordinate:
+                    # Obtener la dirección del carril vecino
+                    road_in_neighbor = None
+                    for agent in neighbor.agents:
+                        if isinstance(agent, Road):
+                            road_in_neighbor = agent
+                            break
+
+                    if road_in_neighbor:
+                        # Calcular congestión en esa dirección
+                        congestion = self.calculate_lane_congestion(neighbor, road_in_neighbor.direction)
+                        # Añadir costo proporcional a la congestión
+                        base_cost += congestion * 0.5
+
                 if not is_spawn_or_destination and self.is_lane_change(current_cell, neighbor):
-                    base_cost += 2
+                    base_cost += 1
 
                 tentative_g = g_score[current_coord] + base_cost
 
@@ -294,10 +309,10 @@ class Car(CellAgent):
                     parent_map[neighbor_coord] = current_cell
                     g_score[neighbor_coord] = tentative_g
                     h = heuristic(neighbor, goal)
-                    # Añadir factor aleatorio más grande para romper empates y variar rutas
-                    # Especialmente importante en el primer paso desde spawn points
+                    # Añadir factor aleatorio para romper empates
+                    # En spawn points, la congestión ya provee variación, así que usamos factor menor
                     if is_spawn_or_destination:
-                        random_factor = random.uniform(0, 3.0)  # Factor grande en spawn para variar
+                        random_factor = random.uniform(0, 0.3)  # Factor pequeño, la congestión decide
                     else:
                         random_factor = random.uniform(0, 0.5)  # Factor moderado en ruta
                     f_score[neighbor_coord] = tentative_g + h + random_factor
@@ -373,6 +388,36 @@ class Car(CellAgent):
 
         return False, None, None
 
+    def calculate_lane_congestion(self, cell, direction, lookahead=8):
+        """
+        Calcula el nivel de congestión en un carril mirando hacia adelante.
+
+        Args:
+            cell: Celda inicial
+            direction: Dirección a revisar
+            lookahead: Número de celdas a revisar hacia adelante
+
+        Returns:
+            int: Número de coches encontrados (mayor = más congestión)
+        """
+        congestion = 0
+
+        for i in range(1, lookahead + 1):
+            next_cell = self.get_cell_ahead(cell, direction, i)
+            if not next_cell:
+                break
+
+            # Contar coches en esta celda
+            car_count = sum(1 for agent in next_cell.agents if isinstance(agent, (Car, Borrachito)))
+            congestion += car_count
+
+            # Penalizar semáforos en rojo
+            for agent in next_cell.agents:
+                if isinstance(agent, Traffic_Light) and not agent.state:
+                    congestion += 2  # Semáforo rojo cuenta como 2 coches
+
+        return congestion
+
     def is_lane_change(self, from_cell, to_cell):
         """
         Detects if movement is a lane change.
@@ -425,14 +470,14 @@ class Car(CellAgent):
         if has_car:
             return False
 
-        for i in range(1, 4):
+        for i in range(1, 2):
             future_cell = self.get_cell_ahead(target_cell, direction, i)
             if future_cell:
                 has_car_ahead = any(isinstance(agent, Car) for agent in future_cell.agents)
                 if has_car_ahead:
                     return False
 
-        for i in range(1, 3):
+        for i in range(1, 2):
             behind_cell = self.get_cell_behind(target_cell, direction, i)
             if behind_cell:
                 for agent in behind_cell.agents:
@@ -634,23 +679,30 @@ class Car(CellAgent):
                 return
 
         # Recalculate if blocked
-        if self.stuck_counter >= 5:
-            alternative_lane = self.try_lane_change()
-            if alternative_lane:
-                self.move_to(alternative_lane)
-                self.path = None
-                self.stuck_counter = 0
-                return
-
-            self.path = self.aStar(avoid_cars=True)
-            if self.path is None:
-                self.path = self.aStar(avoid_cars=False)
-                if self.path is None:
-                    return
-            self.path_index = 0
-            self.stuck_counter = 0
-
         next_cell = self.path[self.path_index + 1]
+
+        traffic_light_blocking = None
+        for agent in next_cell.agents:
+            if isinstance(agent, Traffic_Light):
+                traffic_light_blocking = agent
+                break
+
+        if self.stuck_counter >= 2:
+            if not (traffic_light_blocking and not traffic_light_blocking.state):
+                alternative_lane = self.try_lane_change()
+                if alternative_lane:
+                    self.move_to(alternative_lane)
+                    self.path = None
+                    self.stuck_counter = 0
+                    return
+
+                self.path = self.aStar(avoid_cars=True)
+                if self.path is None:
+                    self.path = self.aStar(avoid_cars=False)
+                    if self.path is None:
+                        return
+                self.path_index = 0
+                self.stuck_counter = 0
 
         is_next_destination = (next_cell.coordinate == self.destination.coordinate)
 
@@ -677,13 +729,7 @@ class Car(CellAgent):
             self.path = None
             return
 
-        traffic_light = None
-        for agent in next_cell.agents:
-            if isinstance(agent, Traffic_Light):
-                traffic_light = agent
-                break
-
-        if traffic_light and not traffic_light.state:
+        if traffic_light_blocking and not traffic_light_blocking.state:
             self.stuck_counter += 1
             return
 
@@ -697,7 +743,7 @@ class Car(CellAgent):
         if future_cell:
             has_car_ahead = any(isinstance(agent, Car) for agent in future_cell.agents)
             if has_car_ahead:
-                if random.random() < 0.7:
+                if random.random() < 0.3:
                     self.stuck_counter += 1
                     return
 
