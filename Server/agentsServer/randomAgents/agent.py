@@ -593,7 +593,14 @@ class Car(CellAgent):
                 spawn_points = [(0, 0), (35, 0), (0, 34), (35, 34)]
                 is_spawn_point = from_cell.coordinate in spawn_points
 
-                if is_spawn_point or from_has_destination or not from_has_road:
+                # Si viene de un spawn point, verificar que no vaya a otro spawn point
+                if is_spawn_point:
+                    # No permitir moverse a otro spawn point
+                    if cell.coordinate in spawn_points:
+                        return False
+                    return True
+
+                if from_has_destination or not from_has_road:
                     return True
 
 
