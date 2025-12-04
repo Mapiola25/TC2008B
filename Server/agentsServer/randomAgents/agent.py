@@ -253,6 +253,7 @@ class Car(CellAgent):
             neighbors_checked = 0
             neighbors_valid = 0
             all_neighbors = self.get_orthogonal_neighbors(current_cell)
+            random.shuffle(all_neighbors)  # Aleatoriza orden para variar rutas
 
             for neighbor in all_neighbors:
                 neighbor_coord = neighbor.coordinate
@@ -293,7 +294,13 @@ class Car(CellAgent):
                     parent_map[neighbor_coord] = current_cell
                     g_score[neighbor_coord] = tentative_g
                     h = heuristic(neighbor, goal)
-                    f_score[neighbor_coord] = tentative_g + h
+                    # Añadir factor aleatorio más grande para romper empates y variar rutas
+                    # Especialmente importante en el primer paso desde spawn points
+                    if is_spawn_or_destination:
+                        random_factor = random.uniform(0, 3.0)  # Factor grande en spawn para variar
+                    else:
+                        random_factor = random.uniform(0, 0.5)  # Factor moderado en ruta
+                    f_score[neighbor_coord] = tentative_g + h + random_factor
 
                     if neighbor_coord not in [item[1] for item in open_set]:
                         heapq.heappush(open_set, (f_score[neighbor_coord], neighbor_coord, neighbor))
@@ -522,8 +529,13 @@ class Car(CellAgent):
         if has_car and check_cars:
             return False
 
+        # Solo permitir pasar por destinos si es el destino propio del coche
         if has_destination:
-            return True
+            if goal and cell.coordinate == goal.coordinate:
+                return True
+            else:
+                # Es un destino pero no es el nuestro - tratarlo como obstáculo
+                return False
 
         if not road_agent:
             return False
