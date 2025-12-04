@@ -84,7 +84,9 @@ def getAgents():
                     "x": coordinate[0],
                     "y":1,
                     "z":coordinate[1],
-                    "type": "Borrachito" if isinstance(a, Borrachito) else "Car"
+                    "type": "Borrachito" if isinstance(a, Borrachito) else "Car",
+                    "crashed": getattr(a, 'crashed', False),
+                    "crash_timer": getattr(a, 'crash_timer', 0)
                 }
                 for (coordinate, a) in agents
             ]

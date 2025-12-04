@@ -418,6 +418,49 @@ class Car(CellAgent):
 
         return congestion
 
+    def is_intersection(self, cell):
+        """
+        Detects if a cell is at an intersection.
+        An intersection is where roads with different directions meet.
+
+        Args:
+            cell: Cell to check
+
+        Returns:
+            bool: True if cell is at an intersection
+        """
+        x, y = cell.coordinate
+
+        # Get orthogonal neighbors
+        neighbor_coords = [
+            (x + 1, y),
+            (x - 1, y),
+            (x, y + 1),
+            (x, y - 1)
+        ]
+
+        # Collect directions from neighboring roads
+        neighbor_directions = set()
+
+        for nx, ny in neighbor_coords:
+            neighbor_cell = self.get_cell_at(nx, ny)
+            if neighbor_cell:
+                for agent in neighbor_cell.agents:
+                    if isinstance(agent, Road):
+                        neighbor_directions.add(agent.direction)
+
+        # Also check current cell
+        for agent in cell.agents:
+            if isinstance(agent, Road):
+                neighbor_directions.add(agent.direction)
+
+        # An intersection has roads with perpendicular directions
+        # Check for Up/Down with Left/Right combinations
+        has_vertical = "Up" in neighbor_directions or "Down" in neighbor_directions
+        has_horizontal = "Left" in neighbor_directions or "Right" in neighbor_directions
+
+        return has_vertical and has_horizontal
+
     def is_lane_change(self, from_cell, to_cell):
         """
         Detects if movement is a lane change.
@@ -856,9 +899,147 @@ class Borrachito(Car):
         self.original_position = cell
         self.crash_partner = None
 
+    def is_walkable(self, cell, direction_from_parent=None, goal=None, allow_lane_change=True, check_cars=False, from_cell=None):
+        """
+        Checks if cell is accessible for Borrachito.
+        Restricts counter-flow movement to intersections only.
+
+        Args:
+            cell: Cell to check
+            direction_from_parent: Direction from parent
+            goal: Destination cell
+            allow_lane_change: Allow lateral movements
+            check_cars: Avoid cells with agents
+            from_cell: Source cell
+
+        Returns:
+            bool: True if accessible
+        """
+        # First check basic walkability from parent class
+        basic_walkable = super().is_walkable(cell, direction_from_parent, goal, allow_lane_change, check_cars, from_cell)
+
+        # If not basically walkable, return False immediately
+        if not basic_walkable:
+            # Special case: check if this is counter-flow movement
+            if direction_from_parent and from_cell:
+                road_agent = None
+                for agent in cell.agents:
+                    if isinstance(agent, Road):
+                        road_agent = agent
+                        break
+
+                if road_agent:
+                    opposite_directions = {
+                        "Up": "Down",
+                        "Down": "Up",
+                        "Left": "Right",
+                        "Right": "Left"
+                    }
+
+                    # Check if movement is in opposite direction
+                    is_opposite = opposite_directions.get(direction_from_parent) == road_agent.direction
+
+                    if is_opposite:
+                        # Allow counter-flow only in intersections
+                        if self.is_intersection(cell) or self.is_intersection(from_cell):
+                            # Still need to check for obstacles
+                            has_obstacle = any(isinstance(agent, Obstacle) for agent in cell.agents)
+                            if has_obstacle:
+                                return False
+
+                            # Check for cars if needed
+                            if check_cars:
+                                has_car = any(isinstance(agent, Car) for agent in cell.agents)
+                                if has_car:
+                                    return False
+
+                            return True
+
+            return False
+
+        return True
+
+    def try_lane_change(self):
+        """
+        Borrachito's aggressive lane change - less safety checks.
+
+        Returns:
+            Cell: Alternative cell, or None
+        """
+        if not self.path or self.path_index >= len(self.path) - 1:
+            # Incluso sin path, intenta moverse lateralmente
+            current_cell = self.cell
+            current_x, current_y = current_cell.coordinate
+
+            # Obtener dirección actual del road
+            current_road = None
+            for agent in current_cell.agents:
+                if isinstance(agent, Road):
+                    current_road = agent
+                    break
+
+            if not current_road:
+                return None
+
+            movement_direction = current_road.direction
+        else:
+            current_cell = self.cell
+            next_in_path = self.path[self.path_index + 1]
+            movement_direction = self.get_direction(current_cell, next_in_path)
+            if not movement_direction:
+                return None
+
+        current_x, current_y = current_cell.coordinate
+
+        # Borrachito intenta TODOS los carriles adyacentes, no solo horizontales
+        adjacent_coords = [
+            (current_x + 1, current_y),
+            (current_x - 1, current_y),
+            (current_x, current_y + 1),
+            (current_x, current_y - 1),
+        ]
+
+        # Aleatorizar para comportamiento impredecible
+        random.shuffle(adjacent_coords)
+
+        for adj_x, adj_y in adjacent_coords:
+            adjacent_cell = self.get_cell_at(adj_x, adj_y)
+
+            if not adjacent_cell:
+                continue
+
+            has_road = any(isinstance(agent, Road) for agent in adjacent_cell.agents)
+            if not has_road:
+                continue
+
+            has_obstacle = any(isinstance(agent, Obstacle) for agent in adjacent_cell.agents)
+            if has_obstacle:
+                continue
+
+            # Borrachito es más agresivo - solo verifica que no haya coche en la celda inmediata
+            has_car = any(isinstance(agent, (Car, Borrachito)) for agent in adjacent_cell.agents)
+            if has_car:
+                continue
+
+            # Reducimos las verificaciones de seguridad - solo mira 1 celda adelante (en vez de 4)
+            future_cell = self.get_cell_ahead(adjacent_cell, movement_direction, 1)
+            if future_cell:
+                has_car_ahead = any(isinstance(agent, (Car, Borrachito)) for agent in future_cell.agents)
+                if has_car_ahead:
+                    # Borrachito no se detiene por esto - sigue intentando
+                    pass
+
+            # No revisa coches atrás - es borrachito, no le importa!
+
+            direction_to_adjacent = self.get_direction(current_cell, adjacent_cell)
+            if self.is_walkable(adjacent_cell, direction_to_adjacent, self.destination, from_cell=current_cell):
+                return adjacent_cell
+
+        return None
+
     def move(self):
         """
-        Moves agent with alternate behavior - MODO BORRACHITO EXAGERADO.
+        Moves agent with alternate behavior - MODO BORRACHITO: Sigue calles pero cambia mucho de carril.
         """
         if self.crashed:
             self.crash_timer += 1
@@ -894,17 +1075,39 @@ class Borrachito(Car):
                 self.path = None
                 return
 
-        if self.stuck_counter >= 3:
-            self.path = self.aStar(avoid_cars=True)
-            if self.path is None:
-                self.path = self.aStar(avoid_cars=False)
-                if self.path is None:
+        # BORRACHITO: Intenta cambiar de carril ocasionalmente antes de recalcular
+        if self.stuck_counter >= 2:  # Espera un poco más antes de cambiar
+            # 30% de probabilidad de intentar cambiar de carril
+            if random.random() < 0.3:
+                alternative_lane = self.try_lane_change()
+                if alternative_lane:
+                    self.move_to(alternative_lane)
+                    self.path = None
+                    self.stuck_counter = 0
                     return
-            self.path_index = 0
-            self.stuck_counter = 0
 
-        # MODO BORRACHITO: 80% de probabilidad de movimiento errático diagonal
-        borrachito_mode = random.random() < 0.8
+            # Si no pudo cambiar o decidió no hacerlo, recalcula después de 3 intentos
+            if self.stuck_counter >= 3:
+                self.path = self.aStar(avoid_cars=True)
+                if self.path is None:
+                    self.path = self.aStar(avoid_cars=False)
+                    if self.path is None:
+                        return
+                self.path_index = 0
+                self.stuck_counter = 0
+
+        # BORRACHITO: También intenta cambiar de carril aleatoriamente (10% de probabilidad)
+        # incluso cuando no está bloqueado, para comportamiento ocasionalmente errático
+        if random.random() < 0.1 and self.path and self.path_index < len(self.path) - 1:
+            alternative_lane = self.try_lane_change()
+            if alternative_lane:
+                self.move_to(alternative_lane)
+                self.path = None
+                self.stuck_counter = 0
+                return
+
+        # MODO BORRACHITO: 20% de probabilidad de movimiento errático diagonal (reducido de 80%)
+        borrachito_mode = random.random() < 0.2
 
         if borrachito_mode:
             # Movimientos diagonales aleatorios en todas direcciones
