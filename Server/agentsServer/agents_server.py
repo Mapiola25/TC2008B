@@ -190,7 +190,7 @@ def getRoads():
             # print(f"AGENTS: {agents}")
 
             roadPositions = [
-                {"id": str(a.unique_id), "x": coordinate[0], "y":0, "z":coordinate[1]}
+                {"id": str(a.unique_id), "x": coordinate[0], "y":0, "z":coordinate[1], "direction": a.direction}
                 for (coordinate, a) in agents
             ]
             # print(f"OBSTACLE POSITIONS: {obstaclePositions}")

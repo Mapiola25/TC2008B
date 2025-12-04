@@ -54,6 +54,9 @@ import trafficLightModel from "../newAssets/signs/model.obj?raw";
 
 // --------- ROADS ----------
 import roadStraight from "../newAssets/roads/road-straight.obj?raw";
+import roadBend from "../newAssets/roads/road-bend.obj?raw";
+import roadIntersection from "../newAssets/roads/road-intersection.obj?raw";
+import roadIntersectionPath from "../newAssets/roads/road-intersection-path.obj?raw";
 
 // --------- TEXTURES ----------
 import colormap from "../newAssets/buildings/Textures/colormap.png";
@@ -135,6 +138,9 @@ let stoplightTemplate = undefined;
 
 let roadTexture = undefined;
 let roadStraightTemplate = undefined;
+let roadBendTemplate = undefined;
+let roadIntersectionTemplate = undefined;
+let roadIntersectionPathTemplate = undefined;
 
 let skybox = undefined;
 let skyboxTexture2D = undefined;
@@ -180,11 +186,17 @@ async function main() {
     flipY: true,
   });
 
+  // Crear textura sólida gris uniforme para carreteras (sin marcas de carriles)
+  const solidRoadColor = new Uint8Array([100, 100, 100, 255]); // Gris oscuro uniforme
   roadTexture = twgl.createTexture(gl, {
     min: gl.NEAREST,
     mag: gl.NEAREST,
-    src: roadsColormap,
-    flipY: true,
+    width: 1,
+    height: 1,
+    src: solidRoadColor,
+    format: gl.RGBA,
+    type: gl.UNSIGNED_BYTE,
+    flipY: false,
   });
 
   skyboxTexture2D = twgl.createTexture(gl, {
@@ -426,10 +438,22 @@ function setupObjects(scene, gl, programInfo) {
   stoplightTemplate = new Object3D(-1);
   stoplightTemplate.prepareVAO(gl, colorProgramInfo, trafficLightModel);
 
-  // --- Plantilla de carretera ---
+  // --- Plantillas de carreteras ---
   roadStraightTemplate = new Object3D(-1);
   roadStraightTemplate.prepareVAO(gl, textureProgramInfo, roadStraight);
   roadStraightTemplate.texture = roadTexture;
+
+  roadBendTemplate = new Object3D(-1);
+  roadBendTemplate.prepareVAO(gl, textureProgramInfo, roadBend);
+  roadBendTemplate.texture = roadTexture;
+
+  roadIntersectionTemplate = new Object3D(-1);
+  roadIntersectionTemplate.prepareVAO(gl, textureProgramInfo, roadIntersection);
+  roadIntersectionTemplate.texture = roadTexture;
+
+  roadIntersectionPathTemplate = new Object3D(-1);
+  roadIntersectionPathTemplate.prepareVAO(gl, textureProgramInfo, roadIntersectionPath);
+  roadIntersectionPathTemplate.texture = roadTexture;
 
   // ---------- Obstáculos: edificios ----------
   for (const agent of obstacles) {
@@ -456,12 +480,14 @@ function setupObjects(scene, gl, programInfo) {
     scene.addObject(buildingFloor);
   }
 
-  // ---------- Calles: solo road-straight, sin orientación automática ----------
+  // ---------- Calles: usar el mismo formato (road-straight) para todas ----------
+  // Todas las calles tienen la misma orientación, sin distinguir sentidos
   for (const road of roads) {
     if (!road.rotRad) {
       road.rotRad = { x: 0, y: 0, z: 0 };
     }
 
+    // Usar road-straight para todas las carreteras (cuadradas, sin curvas)
     road.arrays = roadStraightTemplate.arrays;
     road.bufferInfo = roadStraightTemplate.bufferInfo;
     road.vao = roadStraightTemplate.vao;
@@ -469,6 +495,8 @@ function setupObjects(scene, gl, programInfo) {
     road.texture = roadTexture;
     road.scale = { x: 1.0, y: 1.0, z: 1.0 };
     road.color = [1, 1, 1, 1];
+    
+    // Sin rotación - todas las calles se ven iguales, sin distinguir sentidos
     road.rotRad.y = 0;
 
     scene.addObject(road);

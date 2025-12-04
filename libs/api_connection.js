@@ -167,6 +167,7 @@ async function getRoads() {
             // Create new obstacles and add them to the obstacles array
             for (const road of result.positions) {
                 const newRoad = new Object3D(road.id, [road.x, road.y, road.z]);
+                newRoad.direction = road.direction || "Left";
                 roads.push(newRoad);
             }
             // Log the obstacles array
