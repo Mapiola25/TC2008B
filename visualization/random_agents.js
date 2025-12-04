@@ -15,7 +15,6 @@ import { M4 } from "../libs/3d-lib";
 import { Scene3D } from "../libs/scene3d";
 import { Object3D } from "../libs/object3d";
 import { Camera3D } from "../libs/camera3d";
-import { cubeSkybox } from "../libs/shapes";
 
 // --------- BUILDINGS ----------
 import buildingAClean from "../newAssets/buildings/building-a-clean.obj?raw";
@@ -53,7 +52,8 @@ import roadStraight from "../newAssets/roads/road-straight.obj?raw";
 import colormap from "../newAssets/buildings/Textures/colormap.png";
 import vehiclesColormap from "../newAssets/models/vehicles/Textures/colormap.png";
 import roadsColormap from "../newAssets/roads/Textures/colormap.png";
-import skyboxTexture from "../assets/textures/Skyboxes/image-night.png";
+
+// --------- Moon ----------
 
 // --------- API MODEL ----------
 import {
@@ -69,7 +69,6 @@ import {
   roads,
   tlights,
   getTlights,
-  currentStep,
 } from "../libs/api_connection.js";
 
 // --------- SHADERS ----------
@@ -77,15 +76,12 @@ import vsGLSL from "../assets/shaders/vs_color.glsl?raw";
 import fsGLSL from "../assets/shaders/fs_color.glsl?raw";
 import vsTextureGLSL from "../assets/shaders/vs_multi_lights_attenuation.glsl?raw";
 import fsTextureGLSL from "../assets/shaders/fs_multi_lights_attenuation.glsl?raw";
-import vsSkyboxGLSL from "../assets/shaders/vs_flat_textures.glsl?raw";
-import fsSkyboxGLSL from "../assets/shaders/fs_flat_textures.glsl?raw";
 
 const scene = new Scene3D();
 
 // Global variables
 let colorProgramInfo = undefined;
 let textureProgramInfo = undefined;
-let skyboxProgramInfo = undefined;
 
 let buildingTexture = undefined;
 const buildingTemplates = [];
@@ -98,11 +94,8 @@ let stoplightTemplate = undefined;
 let roadTexture = undefined;
 let roadStraightTemplate = undefined;
 
-let skybox = undefined;
-let skyboxTexture2D = undefined;
-
 let gl = undefined;
-const duration = 1000;
+const duration = 1000; 
 let elapsed = 0;
 let then = 0;
 let baseCube = undefined;
@@ -121,10 +114,6 @@ async function main() {
   textureProgramInfo = twgl.createProgramInfo(gl, [
     vsTextureGLSL,
     fsTextureGLSL,
-  ]);
-  skyboxProgramInfo = twgl.createProgramInfo(gl, [
-    vsSkyboxGLSL,
-    fsSkyboxGLSL,
   ]);
 
   buildingTexture = twgl.createTexture(gl, {
@@ -147,26 +136,6 @@ async function main() {
     src: roadsColormap,
     flipY: true,
   });
-
-  skyboxTexture2D = twgl.createTexture(gl, {
-    min: gl.LINEAR,
-    mag: gl.LINEAR,
-    src: skyboxTexture,
-    flipY: false,
-  });
-
-  // Create skybox object
-  skybox = new Object3D(-1);
-  skybox.arrays = cubeSkybox(100); // Large cube
-  skybox.bufferInfo = twgl.createBufferInfoFromArrays(gl, skybox.arrays);
-  skybox.vao = twgl.createVAOFromBufferInfo(gl, skyboxProgramInfo, skybox.bufferInfo);
-  skybox.programInfo = skyboxProgramInfo;
-  skybox.texture = skyboxTexture2D;
-  skybox.position = { x: 0, y: 0, z: 0 };
-  skybox.scale = { x: 1, y: 1, z: 1 };
-  if (!skybox.rotRad) {
-    skybox.rotRad = { x: 0, y: 0, z: 0 };
-  }
 
   await initAgentsModel();
 
@@ -212,7 +181,6 @@ function setupCarAgent(agent) {
   agent.texture = carTexture;
   agent.scale = { x: 0.35, y: 0.35, z: 0.35 };
   agent.color = [1, 1, 1, 1];
-  agent.isCar = true;
 
   if (!agent.rotRad) {
     agent.rotRad = { x: 0, y: 0, z: 0 };
@@ -331,7 +299,7 @@ function setupObjects(scene, gl, programInfo) {
     buildingFloor.vao = baseCube.vao;
     buildingFloor.programInfo = colorProgramInfo;
     buildingFloor.scale = { x: 1.0, y: 0.01, z: 1.0 };
-    buildingFloor.color = [0.15, 0.15, 0.15, 1.0];
+    buildingFloor.color = [0.7, 0.7, 0.7, 1.0];
     scene.addObject(buildingFloor);
   }
 
@@ -581,49 +549,9 @@ async function drawScene() {
   scene.camera.checkKeys();
   const viewProjectionMatrix = setupViewProjection(gl);
 
-  // ----- Skybox -----
-  // Render skybox first (it should follow the camera)
-  gl.useProgram(skyboxProgramInfo.program);
-  skybox.position.x = scene.camera.position.x;
-  skybox.position.y = scene.camera.position.y;
-  skybox.position.z = scene.camera.position.z;
-
-  const skyboxScaMat = M4.scale(skybox.scaArray);
-  const skyboxRotXMat = M4.rotationX(skybox.rotRad.x);
-  const skyboxRotYMat = M4.rotationY(skybox.rotRad.y);
-  const skyboxRotZMat = M4.rotationZ(skybox.rotRad.z);
-  const skyboxTraMat = M4.translation(skybox.posArray);
-
-  let skyboxTransforms = M4.identity();
-  skyboxTransforms = M4.multiply(skyboxScaMat, skyboxTransforms);
-  skyboxTransforms = M4.multiply(skyboxRotXMat, skyboxTransforms);
-  skyboxTransforms = M4.multiply(skyboxRotYMat, skyboxTransforms);
-  skyboxTransforms = M4.multiply(skyboxRotZMat, skyboxTransforms);
-  skyboxTransforms = M4.multiply(skyboxTraMat, skyboxTransforms);
-
-  const skyboxWvpMat = M4.multiply(viewProjectionMatrix, skyboxTransforms);
-
-  const skyboxUniforms = {
-    u_worldViewProjection: skyboxWvpMat,
-    u_texture: skybox.texture,
-    u_lightIntensity: 1.0,
-  };
-
-  twgl.setUniforms(skyboxProgramInfo, skyboxUniforms);
-  gl.bindVertexArray(skybox.vao);
-  twgl.drawBufferInfo(gl, skybox.bufferInfo);
-
-  for (let i = scene.objects.length - 1; i >= 0; i--) {
-    const obj = scene.objects[i];
-    if (obj.isCar && !agents.some(agent => agent.id === obj.id)) {
-      scene.objects.splice(i, 1);
-    }
-  }
-
-  // Actualizar contadores
+  // Actualizar contador de coches
   if (window.guiSettings) {
     window.guiSettings.carsInMap = agents.length;
-    window.guiSettings.currentStep = currentStep;
   }
 
   // ----- Coches -----
@@ -707,10 +635,6 @@ async function drawScene() {
 
   if (elapsed >= duration && !isPaused) {
     elapsed = 0;
-    
-    // Guardar IDs antes de actualizar
-    const agentIdsBefore = new Set(agents.map(a => a.id));
-    
     for (const agent of agents) {
       if (agent.oldPos) {
         agent.oldPos = [...agent.posArray];
@@ -720,16 +644,6 @@ async function drawScene() {
       }
     }
     await update();
-    
-    // Detectar coches eliminados y quitarlos de la escena
-    const agentIdsAfter = new Set(agents.map(a => a.id));
-    const removedIds = [...agentIdsBefore].filter(id => !agentIdsAfter.has(id));
-    
-    if (removedIds.length > 0) {
-      // Eliminar objetos de la escena que ya no están en agents
-      scene.objects = scene.objects.filter(obj => !removedIds.includes(obj.id));
-      console.log(`Removed ${removedIds.length} car(s) from scene`);
-    }
   }
 
   requestAnimationFrame(drawScene);
@@ -761,7 +675,6 @@ function setupUI() {
     carSpawnRate: 5,
     borrachitoOn: false,
     carsInMap: 0,
-    currentStep: 0,
     togglePause: () => {
       isPaused = !isPaused;
       console.log(isPaused ? "Simulación pausada" : "Simulación reanudada");
@@ -785,13 +698,7 @@ function setupUI() {
   window.guiSettings = settings;
 
   const dataFolder = gui.addFolder("Datos");
-  
-  dataFolder
-    .add(settings, "currentStep")
-    .name("Step actual")
-    .listen();
-  
-  dataFolder
+  const carsController = dataFolder
     .add(settings, "carsInMap")
     .name("Coches en el mapa")
     .listen();
