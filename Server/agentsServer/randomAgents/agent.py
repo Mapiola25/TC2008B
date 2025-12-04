@@ -301,7 +301,7 @@ class Car(CellAgent):
                         base_cost += congestion * 0.5
 
                 if not is_spawn_or_destination and self.is_lane_change(current_cell, neighbor):
-                    base_cost += 1
+                    base_cost += 5  # Penalización aumentada de 1 a 5 para evitar cambios de carril
 
                 tentative_g = g_score[current_coord] + base_cost
 
@@ -470,14 +470,16 @@ class Car(CellAgent):
         if has_car:
             return False
 
-        for i in range(1, 2):
+        # Mirar más adelante antes de cambiar carril (aumentado de 2 a 4)
+        for i in range(1, 4):
             future_cell = self.get_cell_ahead(target_cell, direction, i)
             if future_cell:
                 has_car_ahead = any(isinstance(agent, Car) for agent in future_cell.agents)
                 if has_car_ahead:
                     return False
 
-        for i in range(1, 2):
+        # Mirar más atrás antes de cambiar carril (aumentado de 2 a 3)
+        for i in range(1, 3):
             behind_cell = self.get_cell_behind(target_cell, direction, i)
             if behind_cell:
                 for agent in behind_cell.agents:
@@ -694,7 +696,7 @@ class Car(CellAgent):
                 traffic_light_blocking = agent
                 break
 
-        if self.stuck_counter >= 2:
+        if self.stuck_counter >= 5:  # Aumentado de 2 a 5 - más pacientes antes de cambiar carril
             if not (traffic_light_blocking and not traffic_light_blocking.state):
                 alternative_lane = self.try_lane_change()
                 if alternative_lane:
