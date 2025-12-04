@@ -20,6 +20,8 @@ const roads = [];
 const tlights= [];
 const destinations = [];
 let currentStep = 0;
+let carsSpawned = 0;
+let carsArrived = 0;
 
 // Define the data object
 const initData = {
@@ -224,7 +226,9 @@ async function update() {
         if (response.ok) {
             let result = await response.json();
             currentStep = result.currentStep || 0;
-            
+            carsSpawned = result.carsSpawned || 0;
+            carsArrived = result.carsArrived || 0;
+
             // Retrieve the updated agent positions
             await getAgents();
             await getTlights();
@@ -246,4 +250,4 @@ async function update() {
     }
 }
 
-export { agents, obstacles, roads, destinations, initAgentsModel, update, getAgents, getObstacles, getRoads, tlights, getTlights, getDestinations, currentStep };
+export { agents, obstacles, roads, destinations, initAgentsModel, update, getAgents, getObstacles, getRoads, tlights, getTlights, getDestinations, currentStep, carsSpawned, carsArrived };

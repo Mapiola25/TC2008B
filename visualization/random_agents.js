@@ -79,6 +79,8 @@ import {
   tlights,
   getTlights,
   currentStep,
+  carsSpawned,
+  carsArrived,
 } from "../libs/api_connection.js";
 
 // --------- SHADERS ----------
@@ -855,6 +857,8 @@ async function drawScene() {
   if (window.guiSettings) {
     window.guiSettings.carsInMap = agents.length;
     window.guiSettings.currentStep = currentStep;
+    window.guiSettings.totalCarsSpawned = carsSpawned;
+    window.guiSettings.carsArrived = carsArrived;
   }
 
   // ----- Coches -----
@@ -1101,6 +1105,8 @@ function setupUI() {
     borrachitoOn: false,
     carsInMap: 0,
     currentStep: 0,
+    totalCarsSpawned: 0,
+    carsArrived: 0,
     startSimulation: () => {
       if (!simulationStarted) {
         simulationStarted = true;
@@ -1137,15 +1143,25 @@ function setupUI() {
   window.guiSettings = settings;
 
   const dataFolder = gui.addFolder("Datos");
-  
+
   dataFolder
     .add(settings, "currentStep")
     .name("Step actual")
     .listen();
-  
+
   dataFolder
     .add(settings, "carsInMap")
     .name("Coches en el mapa")
+    .listen();
+
+  dataFolder
+    .add(settings, "totalCarsSpawned")
+    .name("Coches totales spawneados")
+    .listen();
+
+  dataFolder
+    .add(settings, "carsArrived")
+    .name("Coches que llegaron")
     .listen();
 
   const simulationFolder = gui.addFolder("Simulación");

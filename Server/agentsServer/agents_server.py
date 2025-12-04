@@ -245,7 +245,12 @@ def updateModel():
         # Update the model and return a message to WebGL saying that the model was updated successfully
             randomModel.step()
             currentStep += 1
-            return jsonify({'message': f'Model updated to step {currentStep}.', 'currentStep':currentStep})
+            return jsonify({
+                'message': f'Model updated to step {currentStep}.',
+                'currentStep': currentStep,
+                'carsSpawned': randomModel.cars_spawned,
+                'carsArrived': randomModel.cars_arrived
+            })
         except Exception as e:
             print(e)
             return jsonify({"message": "Error during step."}), 500
